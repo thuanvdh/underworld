@@ -24,7 +24,10 @@ import {
   power,
   rollEnhance,
   salvageYield,
+  DAILY_QUESTS,
+  DAILY_QUEST_POINTS,
   type BoonId,
+  type CounterKey,
   type ClassId,
   type Equipment,
   type Item,
@@ -68,8 +71,8 @@ export type PlayerView = ReturnType<GameService["view"]>;
  * player view, so the client never has to guess balances.
  */
 export class GameService {
-  private readonly db: Db;
-  private readonly now: () => number;
+  protected readonly db: Db;
+  protected readonly now: () => number;
 
   constructor(db: Db, now: () => number = Date.now) {
     this.db = db;
@@ -82,9 +85,14 @@ export class GameService {
     return tx(this.db, () => {
       const now = this.now();
       const existing = findPlayerByTelegram(this.db, telegramId);
-      if (!existing) return insertPlayer(this.db, telegramId, name.slice(0, 64) || "Hunter", language, now);
+      if (!existing) {
+        const created = insertPlayer(this.db, telegramId, name.slice(0, 64) || "Hunter", language, now);
+        this.bump(created, "login");
+        return created;
+      }
       existing.name = name.slice(0, 64) || existing.name;
       existing.lastSeenAt = now;
+      if (this.counter(existing.id, `d:${dayKey(now)}`, "login") === 0) this.bump(existing, "login");
       savePlayer(this.db, existing);
       return existing;
     });
@@ -156,6 +164,7 @@ export class GameService {
       const levelFrom = p.level;
       const summary = emptySummary(levelFrom);
       const floor = row.floor;
+      const levelFromFloor = p.highestFloor;
       const ref = `battle:${battleId}`;
 
       if (result.victory) {
@@ -186,6 +195,9 @@ export class GameService {
         if (!row.free_energy) p.energy += Math.floor((ENERGY.perRun * ENERGY.refundOnLossBp) / 10000);
       }
 
+      this.bump(p, "runs");
+      if (result.victory && result.stars === 3) this.bump(p, "stars3");
+      if (result.victory && floor > levelFromFloor) this.bump(p, "newFloors");
       summary.levelTo = p.level;
       savePlayer(this.db, p);
       const response: FinishResponse = { result, rewards: summary, player: this.view(p) };
@@ -215,6 +227,7 @@ export class GameService {
         this.pay(p, summary, { gold: r.gold, exp: r.exp, stones: r.stones, gems: r.gems }, "sweep", `floor:${floor}`, now);
         this.giveItems(p, r.items, summary, now);
       }
+      this.bump(p, "runs", times);
       summary.levelTo = p.level;
       savePlayer(this.db, p);
       return { rewards: summary, player: this.view(p) };
@@ -241,6 +254,7 @@ export class GameService {
         generateItem(rng, { rarity: rng.weighted(DROP_RARITY.afk), ilvl: Math.max(1, p.highestFloor), classId: dropClass(rng, p.classId) }),
       );
       this.giveItems(p, items, summary, now);
+      this.bump(p, "afk");
       summary.levelTo = p.level;
       savePlayer(this.db, p);
       return { rewards: summary, player: this.view(p) };
@@ -299,6 +313,7 @@ export class GameService {
       adjust(this.db, p, "gold", -cost.gold, "enhance", `item:${it.id}`, now);
       adjust(this.db, p, "stones", -cost.stones, "enhance", `item:${it.id}`, now);
       success = rollEnhance(new Rng(randomInt(0, 2 ** 32)), it);
+      this.bump(p, "enhance");
       this.db.prepare("UPDATE items SET data = ? WHERE id = ?").run(JSON.stringify(it), it.id);
       item = it;
     });
@@ -320,6 +335,7 @@ export class GameService {
         this.db.prepare("DELETE FROM items WHERE id = ?").run(id);
         salvaged += 1;
       }
+      this.bump(p, "salvage", salvaged);
     });
     return { salvaged, player };
   }
@@ -393,14 +409,14 @@ export class GameService {
 
   // ───────────────────────── internals ─────────────────────────
 
-  private load(playerId: number): Player {
+  protected load(playerId: number): Player {
     const p = findPlayer(this.db, playerId);
     if (!p) throw new GameError("unauthorized", "player not found");
     return p;
   }
 
   /** Load, mutate, save and return the view, all in one transaction. */
-  private write(playerId: number, fn: (p: Player, now: number) => void): PlayerView {
+  protected write(playerId: number, fn: (p: Player, now: number) => void): PlayerView {
     return tx(this.db, () => {
       const now = this.now();
       const p = this.load(playerId);
@@ -410,7 +426,7 @@ export class GameService {
     });
   }
 
-  private regenEnergy(p: Pick<Player, "energy" | "energyAt">, now: number): void {
+  protected regenEnergy(p: Pick<Player, "energy" | "energyAt">, now: number): void {
     if (p.energy >= ENERGY.max) {
       p.energyAt = now;
       return;
@@ -422,22 +438,22 @@ export class GameService {
     p.energy = next;
   }
 
-  private spendEnergy(p: Player, amount: number): void {
+  protected spendEnergy(p: Player, amount: number): void {
     if (p.energy < amount) throw new GameError("not_enough_energy");
     if (p.energy >= ENERGY.max) p.energyAt = this.now();
     p.energy -= amount;
   }
 
-  private isFreeRun(p: Player, floor: number, now: number): boolean {
+  protected isFreeRun(p: Player, floor: number, now: number): boolean {
     return floor <= ENERGY.newbieFreeFloors && now - p.createdAt < ENERGY.newbieFreeHours * HOUR_MS;
   }
 
-  private equipment(p: Player): Equipment {
+  protected equipment(p: Player): Equipment {
     return this.items(p.id, p.classId).equipped;
   }
 
   /** Unequipped item count per class, so the UI can point at gear waiting for another hunter. */
-  private bagCounts(playerId: number): Record<ClassId, number> {
+  protected bagCounts(playerId: number): Record<ClassId, number> {
     const rows = this.db.prepare("SELECT class, COUNT(*) AS n FROM items WHERE player_id = ? AND equipped_slot IS NULL GROUP BY class").all(playerId) as {
       class: ClassId;
       n: number;
@@ -447,23 +463,23 @@ export class GameService {
     return out;
   }
 
-  private item(playerId: number, itemId: string): Item {
+  protected item(playerId: number, itemId: string): Item {
     const row = this.db.prepare("SELECT data, class FROM items WHERE id = ? AND player_id = ?").get(itemId, playerId) as { data: string; class: string } | undefined;
     if (!row) throw new GameError("not_found", "item not found");
     return parseItem(row.data, row.class);
   }
 
-  private pity(playerId: number, code: string): number {
+  protected pity(playerId: number, code: string): number {
     return (this.db.prepare("SELECT value FROM pity WHERE player_id = ? AND code = ?").get(playerId, code) as { value: number } | undefined)?.value ?? 0;
   }
 
-  private setPity(playerId: number, code: string, value: number): void {
+  protected setPity(playerId: number, code: string, value: number): void {
     this.db
       .prepare("INSERT INTO pity (player_id, code, value) VALUES (?, ?, ?) ON CONFLICT(player_id, code) DO UPDATE SET value = excluded.value")
       .run(playerId, code, value);
   }
 
-  private pay(
+  protected pay(
     p: Player,
     summary: RewardSummary,
     r: { gold: number; exp: number; stones: number; gems: number },
@@ -483,7 +499,7 @@ export class GameService {
     summary.gems += r.gems;
   }
 
-  private giveItems(p: Player, items: Item[], summary: RewardSummary, now: number): void {
+  protected giveItems(p: Player, items: Item[], summary: RewardSummary, now: number): void {
     // Each class has its own bag; a drop goes to the bag of the class it belongs to.
     const counts = this.bagCounts(p.id);
     for (const item of items) {
@@ -498,7 +514,7 @@ export class GameService {
     }
   }
 
-  private salvageItem(p: Player, item: Item, now: number): void {
+  protected salvageItem(p: Player, item: Item, now: number): void {
     const y = salvageYield(item);
     adjust(this.db, p, "dust", y.dust, "salvage", `item:${item.id}`, now);
     adjust(this.db, p, "crystals", y.crystals, "salvage", `item:${item.id}`, now);
@@ -506,7 +522,7 @@ export class GameService {
     adjust(this.db, p, "stones", y.stones, "salvage", `item:${item.id}`, now);
   }
 
-  private afkPending(p: Player, now: number) {
+  protected afkPending(p: Player, now: number) {
     const hours = Math.max(0, Math.min(AFK.maxHours, (now - p.afkLastClaim) / HOUR_MS));
     if (p.highestFloor === 0 || hours <= 0) {
       return { hours, gold: 0, exp: 0, stones: 0, dust: 0, itemRolls: 0, carryStones: p.afkCarryStones, carryDust: p.afkCarryDust };
@@ -526,7 +542,40 @@ export class GameService {
     };
   }
 
-  private resetForgeDay(p: Player, now: number): void {
+  // ───────────────────────── counters (quests, limits) ─────────────────────────
+
+  protected counter(playerId: number, period: string, key: string): number {
+    return (this.db.prepare("SELECT n FROM counters WHERE player_id = ? AND period = ? AND key = ?").get(playerId, period, key) as { n: number } | undefined)?.n ?? 0;
+  }
+
+  protected addCounter(playerId: number, period: string, key: string, n: number): void {
+    this.db
+      .prepare("INSERT INTO counters (player_id, period, key, n) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, period, key) DO UPDATE SET n = n + excluded.n")
+      .run(playerId, period, key, n);
+  }
+
+  protected setCounter(playerId: number, period: string, key: string, n: number): void {
+    this.db
+      .prepare("INSERT INTO counters (player_id, period, key, n) VALUES (?, ?, ?, ?) ON CONFLICT(player_id, period, key) DO UPDATE SET n = excluded.n")
+      .run(playerId, period, key, n);
+  }
+
+  /** Record an action for daily and weekly quests; completing a daily quest feeds weekly activity. */
+  protected bump(p: Player, key: CounterKey, n = 1): void {
+    if (n <= 0) return;
+    const now = this.now();
+    const day = `d:${dayKey(now)}`;
+    const week = `w:${weekKey(now)}`;
+    const before = this.counter(p.id, day, key);
+    this.addCounter(p.id, day, key, n);
+    this.addCounter(p.id, week, key, n);
+    for (const q of DAILY_QUESTS) {
+      if (q.counter !== key || (q.minLevel ?? 0) > p.level) continue;
+      if (before < q.target && before + n >= q.target) this.addCounter(p.id, week, "activity", DAILY_QUEST_POINTS);
+    }
+  }
+
+  protected resetForgeDay(p: Player, now: number): void {
     const key = dayKey(now);
     if (p.forgeDay !== key) {
       p.forgeDay = key;
@@ -547,7 +596,17 @@ function emptySummary(level: number): RewardSummary {
 }
 
 /** Daily reset key. Uses UTC until per-Region reset (GDD §17.3) lands. */
-function dayKey(now: number): string {
+export function dayKey(now: number): string {
   return new Date(now).toISOString().slice(0, 10);
+}
+
+/** ISO week key, e.g. "2026-W41" (weeks start Monday, UTC). */
+export function weekKey(now: number): string {
+  const d = new Date(now);
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round(((d.getTime() - firstThursday.getTime()) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+  return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 

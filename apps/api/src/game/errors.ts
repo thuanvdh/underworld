@@ -15,7 +15,11 @@ export type ErrorCode =
   | "not_sweepable"
   | "class_change_locked"
   | "class_not_chosen"
-  | "wrong_class";
+  | "wrong_class"
+  | "already_claimed"
+  | "not_ready"
+  | "not_enough_gems"
+  | "limit_reached";
 
 const STATUS: Partial<Record<ErrorCode, number>> = {
   unauthorized: 401,

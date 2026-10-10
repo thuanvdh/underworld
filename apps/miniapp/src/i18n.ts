@@ -62,6 +62,12 @@ const en = {
   "error.item_too_high": "Item level too high",
   "error.forge_cap": "Daily forge limit reached",
   "error.network": "Connection problem, try again",
+  "error.not_enough_gems": "Not enough gems",
+  "error.limit_reached": "Daily limit reached",
+  "error.already_claimed": "Already claimed",
+  "error.not_ready": "Not ready yet",
+  "error.locked_feature": "Not unlocked yet",
+  "error.wrong_class": "Switch to that hunter to equip it",
   "error.generic": "Something went wrong",
 } as const;
 

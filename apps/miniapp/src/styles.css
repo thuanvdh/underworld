@@ -1284,3 +1284,195 @@ button:disabled {
   line-height: 18px;
   box-shadow: 0 0 0 2px var(--abyss);
 }
+
+/* ───────── Quests & shop ───────── */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.tabs button {
+  position: relative;
+  font-family: var(--pixel);
+  padding: 8px 0;
+  background: var(--slate);
+  border: 2px solid var(--rivet);
+  color: var(--muted);
+}
+.tabs button.on {
+  color: var(--teal);
+  border-color: var(--teal-dark);
+  background: #4fe3e012;
+}
+.activity {
+  position: relative;
+  height: 46px;
+  margin: 10px 12px 2px 4px;
+}
+.activity-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18px;
+  height: 10px;
+  background: #2c2c3a;
+  border: 2px solid #000;
+}
+.activity-bar > div {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--heal) 0 6px, #3fbf6a 6px 8px);
+  transition: width 0.4s steps(10);
+}
+.milestone {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  opacity: 0.55;
+}
+.milestone span {
+  font-size: 11px;
+  margin-top: 18px;
+}
+.milestone img {
+  position: absolute;
+  top: 6px;
+}
+.milestone.ready {
+  opacity: 1;
+  animation: hop 0.9s steps(2) infinite;
+  filter: drop-shadow(0 0 6px var(--gold));
+}
+.milestone.claimed {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+.milestone:disabled {
+  cursor: default;
+}
+@keyframes hop {
+  50% { transform: translate(-50%, -3px); }
+}
+.milestone-rewards {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.reward-chips {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-family: var(--pixel);
+  font-size: 12px;
+}
+.reward-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.quest-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--slate);
+  border: 2px solid var(--rivet);
+  padding: 8px 10px;
+}
+.quest-row .grow {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.quest-row.done {
+  border-color: #2f6a44;
+}
+.quest-row.done .pts {
+  color: var(--heal);
+}
+.quest-row.locked {
+  opacity: 0.5;
+}
+.quest-row .pts {
+  color: var(--gold);
+  width: 30px;
+  text-align: right;
+}
+.mini-bar {
+  height: 6px;
+  background: #2c2c3a;
+  border: 1px solid #000;
+}
+.mini-bar > div {
+  height: 100%;
+  background: var(--heal);
+}
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.calendar .day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px;
+  background: var(--slate);
+  border: 2px solid var(--rivet);
+  min-height: 78px;
+  justify-content: center;
+}
+.calendar .day.final {
+  grid-column: span 2;
+  border-color: #8a4a10;
+  background: linear-gradient(180deg, #2a1a12, var(--slate));
+}
+.calendar .day.today {
+  border-color: var(--teal);
+  box-shadow: 0 0 12px rgba(79, 227, 224, 0.35);
+}
+.calendar .day.claimed {
+  opacity: 0.45;
+}
+.calendar .day .check {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  color: var(--heal);
+}
+.chest-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chest-art {
+  display: grid;
+  place-items: center;
+  height: 110px;
+  background: radial-gradient(ellipse at 50% 70%, #ffc93c30, transparent 60%);
+}
+.chest-art img {
+  animation: hop 1.6s steps(2) infinite;
+}
+.chest-art.opening img {
+  animation: shake 0.45s steps(9);
+  filter: brightness(1.8) drop-shadow(0 0 16px #ffc93c);
+}
+.shop-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.shop-row .grow {
+  flex: 1;
+}

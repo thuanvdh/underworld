@@ -7,7 +7,7 @@ import { signSession, verifyInitData, verifySession } from "./auth.ts";
 import type { Config } from "./config.ts";
 import { openDb, type Db } from "./db.ts";
 import { GameError } from "./game/errors.ts";
-import { GameService } from "./game/service.ts";
+import { MetaService } from "./game/meta.ts";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -27,7 +27,7 @@ export interface AppDeps {
 /** Build the HTTP API (detailed design §23). All routes live under /api. */
 export function buildApp({ config, db = openDb(config.dbPath), now = Date.now }: AppDeps): FastifyInstance {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
-  const game = new GameService(db, now);
+  const game = new MetaService(db, now);
   const seconds = () => Math.floor(now() / 1000);
 
   app.decorateRequest("playerId", 0);
@@ -97,6 +97,20 @@ export function buildApp({ config, db = openDb(config.dbPath), now = Date.now }:
     });
 
     r.post("/api/forge/stones", async (req) => game.buyStones(req.playerId, int(req.body, "count")));
+
+    r.get("/api/quests", async (req) => game.quests(req.playerId));
+    r.post("/api/quests/chest/:at", async (req) => game.claimActivityChest(req.playerId, Number((req.params as { at: string }).at)));
+    r.post("/api/quests/weekly/:id", async (req) => game.claimWeekly(req.playerId, (req.params as { id: string }).id));
+    r.post("/api/calendar/claim", async (req) => game.claimCalendar(req.playerId));
+
+    r.get("/api/shop", async (req) => game.shop(req.playerId));
+    r.post("/api/shop/chest", async (req) => {
+      const body = (req.body ?? {}) as { count?: unknown; free?: unknown };
+      return game.openChest(req.playerId, int(body, "count"), body.free === true);
+    });
+    r.post("/api/shop/energy", async (req) => game.buyEnergy(req.playerId));
+    r.post("/api/shop/afk", async (req) => game.instantAfk(req.playerId));
+    r.post("/api/shop/deal/:id", async (req) => game.buyDeal(req.playerId, (req.params as { id: string }).id));
     r.post("/api/forge/convert-dust", async (req) => game.convertDust(req.playerId));
   });
 

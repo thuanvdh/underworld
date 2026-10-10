@@ -44,14 +44,14 @@ export function Coach({ target, text, place = "above" }: { target: string; text:
 
 export interface Unlock {
   level: number;
-  id: "enhance" | "boons" | "afk" | "auto" | "speed";
+  id: "enhance" | "boons" | "afk" | "auto" | "speed" | "quests" | "shop";
   title: string;
   npc: string;
   line: string;
   text: string;
   icon: Sprite;
   /** Tab to open on "Show me", if any. */
-  go?: "hero" | "abyss";
+  go?: "hero" | "abyss" | "shop" | "quests";
 }
 
 /** Features that open up with level (GDD §6.2), each introduced by an NPC. Only shipped features are listed. */
@@ -93,6 +93,26 @@ export const UNLOCKS: Unlock[] = [
     text: "Gold, EXP, stones and gear pile up for 12 hours. Tap the chest or Claim to collect.",
     icon: ICONS.chest,
     go: "abyss",
+  },
+  {
+    level: UNLOCK_LEVEL.dailyQuests,
+    id: "quests",
+    title: "Quests & login rewards",
+    npc: "KAT",
+    line: "Jobs every day, bigger ones every week. Do them and I pay in gems. Show up daily for my gifts.",
+    text: "Daily quests fill your activity bar (chests at 40/80/100). Weekly quests and a 7-day login calendar — day 7 is a Legendary weapon.",
+    icon: ICONS.star,
+    go: "quests",
+  },
+  {
+    level: UNLOCK_LEVEL.shop,
+    id: "shop",
+    title: "Gem shop open",
+    npc: "KAT",
+    line: "Gems talk down here. Spend them on chests, energy, or a quick haul from your vault.",
+    text: "Abyss Chest (1 free pull a day, Legendary guaranteed by pull 60), energy refills, instant AFK and daily deals.",
+    icon: ICONS.gem,
+    go: "shop",
   },
   {
     level: UNLOCK_LEVEL.speedX2,

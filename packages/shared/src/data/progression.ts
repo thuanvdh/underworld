@@ -31,7 +31,7 @@ export const UNLOCK_LEVEL = {
   guild: 12,
   raid: 15,
   craft: 15,
-  chest: 18,
+  chest: 10,
   speedX2: 10,
   reforge: 20,
   battlePass: 20,

@@ -1,5 +1,5 @@
 import type { BattleInputs, BattleResult, BattleSetup } from "@underworld/combat";
-import type { ClassId, Equipment, Item, SetCode, Stats } from "@underworld/shared";
+import type { ClassId, Equipment, Item, Reward, SetCode, Stats } from "@underworld/shared";
 import { initData } from "./telegram.ts";
 
 export interface PlayerView {
@@ -43,6 +43,26 @@ export interface RewardSummary {
   levelFrom: number;
   levelTo: number;
 }
+
+export interface QuestState {
+  daily: { id: string; title: string; progress: number; target: number; points: number; done: boolean; locked: boolean; minLevel: number }[];
+  activity: number;
+  chests: { at: number; reward: Reward; claimed: boolean; ready: boolean }[];
+  weekly: { id: string; title: string; progress: number; target: number; reward: Reward; claimed: boolean; ready: boolean }[];
+  calendar: { claimed: number; canClaim: boolean; rewards: Reward[] };
+  dailyResetIn: number;
+  weeklyResetIn: number;
+  claimable: boolean;
+}
+
+export interface ShopState {
+  chest: { single: number; ten: number; freeLeft: number; pity: number; pityAt: number };
+  energy: { amount: number; nextPrice: number | null; left: number };
+  afk: { hours: number; nextPrice: number | null; left: number; gold: number; exp: number; unlocked: boolean };
+  deals: { id: string; title: string; price: number; left: number }[];
+}
+
+type Claim = { rewards: RewardSummary; player: PlayerView };
 
 export class ApiError extends Error {
   readonly code: string;
@@ -108,4 +128,13 @@ export const api = {
   salvage: (itemIds: string[]) => request<{ salvaged: number; player: PlayerView }>("POST", "/items/salvage", { itemIds }),
   buyStones: (count: number) => request<PlayerView>("POST", "/forge/stones", { count }),
   convertDust: () => request<PlayerView>("POST", "/forge/convert-dust", {}),
+  quests: () => request<QuestState>("GET", "/quests"),
+  claimActivity: (at: number) => request<Claim>("POST", `/quests/chest/${at}`, {}),
+  claimWeekly: (id: string) => request<Claim>("POST", `/quests/weekly/${id}`, {}),
+  claimCalendar: () => request<Claim>("POST", "/calendar/claim", {}),
+  shop: () => request<ShopState>("GET", "/shop"),
+  openChest: (count: 1 | 10, free = false) => request<Claim>("POST", "/shop/chest", { count, free }),
+  buyEnergy: () => request<Claim>("POST", "/shop/energy", {}),
+  instantAfk: () => request<Claim>("POST", "/shop/afk", {}),
+  buyDeal: (id: string) => request<Claim>("POST", `/shop/deal/${id}`, {}),
 };

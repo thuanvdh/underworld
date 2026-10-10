@@ -9,3 +9,4 @@ export * from "./data/boons.ts";
 export * from "./data/items.ts";
 export * from "./data/economy.ts";
 export * from "./data/progression.ts";
+export * from "./data/meta.ts";

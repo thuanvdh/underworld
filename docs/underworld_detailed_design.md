@@ -1226,3 +1226,15 @@ REST qua HTTPS. Mọi yêu cầu gửi kèm header `X-Telegram-Init-Data` (máy 
 - **Thưởng hướng dẫn:** lần đầu qua tầng 1 chắc chắn rơi áo Hiếm, boss tầng 3 lần đầu chắc chắn rơi vũ khí Sử Thi. Cả hai đều thuộc lớp đang chơi.
 - **Mở theo cấp:** Phúc lợi chỉ xuất hiện từ cấp 6. Nâng cấp ở cấp 3 và AFK ở cấp 7 mở kèm popup giới thiệu của NPC.
 - **Trong trận đầu:** lần đầu kỹ năng sẵn sàng, game chậm lại và có ngón tay chỉ nút. Boss tầng 3 có gợi ý phá khiên bằng Perfect. Màn kết quả có nút trang bị ngay món tốt nhất.
+
+### 25.5. Cập nhật: nhiệm vụ, lịch đăng nhập và cửa hàng kim cương (đã làm)
+
+Nguồn dữ liệu: `packages/shared/src/data/meta.ts`. Mở ở **cấp 10**, cùng lúc với Rương Ngầm (trước đây Rương Ngầm mở ở cấp 18).
+
+- **Nhiệm vụ ngày** (mỗi nhiệm vụ +20 điểm hoạt động): Đăng nhập · Đánh 3 lượt hầm ngục · Qua 1 tầng 3 sao · Nâng cấp 1 lần (cấp 3+) · Nhận AFK 2 lần (cấp 7+) · Phân rã 3 món · Mở 1 Rương Ngầm.
+- **Rương hoạt động:** 40 điểm → 5.000 vàng + 20 năng lượng · 80 điểm → 25 💎 + 5 đá · 100 điểm → 35 💎 + 5.000 vàng + 20 năng lượng + 5 đá. Tổng **60 💎/ngày**.
+- **Nhiệm vụ tuần:** 500 điểm hoạt động → 60 💎 · 20 lượt hầm ngục → 30 đá · 3 tầng mới → 20.000 vàng · Nâng cấp 10 lần → 40 💎.
+- **Lịch đăng nhập 7 ngày** (mỗi ngày nhận 1 ô): 500 💎 · 20 đá · Rương Ngầm ×10 · 30.000 vàng · 1.000 💎 · đồ Sử Thi · **vũ khí Huyền Thoại**. Đồ trong lịch thuộc lớp đang chơi.
+- **Cửa hàng:** Rương Ngầm (1 lượt miễn phí/ngày, 160 💎/lượt, 1.500 💎/10 lượt, mở 10 lượt chắc chắn có Sử Thi, bảo hiểm Huyền Thoại ở lượt 60 và giữ mãi; đồ thuộc lớp đang chơi) · +60 năng lượng (50/80/120 💎, 3 lần/ngày) · AFK tức thì 2 giờ (lần đầu miễn phí, sau đó 50/80/120/160 💎) · 30 đá (120 💎, 3 lần/ngày) · 10 tinh thể (150 💎, 2 lần/ngày).
+- **Thu nhập kim cương thực tế của người không nạp:** khoảng 60 💎/ngày từ nhiệm vụ ngày, khoảng 14 💎/ngày từ nhiệm vụ tuần, cộng 1.500 💎 một lần từ lịch đăng nhập, tức khoảng 75 💎/ngày. Đấu trường sẽ thêm khoảng 20 💎/ngày khi làm xong.
+- **Chưa làm:** gói nạp bằng Telegram Stars.

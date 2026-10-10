@@ -108,7 +108,8 @@ export function afkPerHour(floor: number): { gold: number; exp: number; stones: 
 }
 
 // Detailed design §18.1
-export const DAILY_QUEST_REWARDS = { gold: 10000, gems: 30, energy: 40, stones: 10 } as const;
+// Sum of the three activity chests in data/meta.ts.
+export const DAILY_QUEST_REWARDS = { gold: 10000, gems: 60, energy: 40, stones: 10 } as const;
 
 // Detailed design §14.2 — gold sink: buy Enhancement Stones at the Forge, price rising within the day.
 export const FORGE_STONES = {

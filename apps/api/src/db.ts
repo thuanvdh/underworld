@@ -72,6 +72,16 @@ CREATE TABLE IF NOT EXISTS battles (
 );
 CREATE INDEX IF NOT EXISTS battles_player ON battles(player_id, status);
 
+-- Generic per-period counters: quest progress, claims, daily purchase limits, login calendar.
+-- period: "d:YYYY-MM-DD", "w:YYYY-Www" or "life".
+CREATE TABLE IF NOT EXISTS counters (
+  player_id INTEGER NOT NULL,
+  period    TEXT    NOT NULL,
+  key       TEXT    NOT NULL,
+  n         INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (player_id, period, key)
+);
+
 CREATE TABLE IF NOT EXISTS ledger (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   player_id     INTEGER NOT NULL,

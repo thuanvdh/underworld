@@ -8,6 +8,8 @@ import { BattleScreen } from "./screens/BattleScreen.tsx";
 import { Hero } from "./screens/Hero.tsx";
 import { CharacterSelect } from "./screens/CharacterSelect.tsx";
 import { Home } from "./screens/Home.tsx";
+import { Quests } from "./screens/Quests.tsx";
+import { Shop } from "./screens/Shop.tsx";
 import { useGame } from "./state.tsx";
 import { UNLOCKS, UnlockModal, type Unlock } from "./tutorial.tsx";
 
@@ -27,6 +29,7 @@ export function App() {
   const [fighting, setFighting] = useState<{ floor: number; key: number } | null>(null);
   const [changingClass, setChangingClass] = useState(false);
   const [unlocks, setUnlocks] = useState<Unlock[]>([]);
+  const [questsOpen, setQuestsOpen] = useState(false);
   const prevLevel = useRef(player.level);
 
   // Introduce each feature the moment its level is reached (shown once back from battle).
@@ -73,9 +76,13 @@ export function App() {
   return (
     <div className="app">
       <TopBar onPortrait={() => setChangingClass(true)} />
-      {tab === "abyss" && <Home onFight={(floor) => setFighting({ floor, key: Date.now() })} onOpenHero={() => setTab("hero")} />}
-      {tab === "hero" && <Hero onChangeClass={() => setChangingClass(true)} />}
-      {(tab === "pvp" || tab === "guild" || tab === "shop") && (
+      {questsOpen && <Quests onClose={() => setQuestsOpen(false)} />}
+      {!questsOpen && tab === "abyss" && (
+        <Home onFight={(floor) => setFighting({ floor, key: Date.now() })} onOpenHero={() => setTab("hero")} onOpenQuests={() => setQuestsOpen(true)} />
+      )}
+      {!questsOpen && tab === "hero" && <Hero onChangeClass={() => setChangingClass(true)} />}
+      {!questsOpen && tab === "shop" && !locked && <Shop />}
+      {!questsOpen && (tab === "pvp" || tab === "guild" || (tab === "shop" && locked)) && (
         <div className="locked-screen">
           <div>
             <SpriteImg sprite={locked ? ICONS.lock : navSprite(tab, false)} scale={6} />
@@ -90,7 +97,10 @@ export function App() {
           onGo={() => {
             const go = unlocks[0]!.go;
             setUnlocks((q) => q.slice(1));
-            if (go) setTab(go);
+            if (go === "quests") {
+              setTab("abyss");
+              setQuestsOpen(true);
+            } else if (go) setTab(go);
           }}
         />
       )}
@@ -98,7 +108,14 @@ export function App() {
         {TABS.map((x) => {
           const isLocked = player.level < x.unlock;
           return (
-            <button key={x.id} className={tab === x.id ? "active" : ""} onClick={() => setTab(x.id)}>
+            <button
+            key={x.id}
+            className={tab === x.id ? "active" : ""}
+            onClick={() => {
+              setQuestsOpen(false);
+              setTab(x.id);
+            }}
+          >
               <SpriteImg sprite={isLocked ? ICONS.lock : navSprite(x.id, tab === x.id)} scale={2} />
               {t(`nav.${x.id}`)}
             </button>

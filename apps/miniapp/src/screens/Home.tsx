@@ -21,7 +21,7 @@ export const CHAPTER_NAMES: Record<string, string> = {
 
 type Goal = { text: string; up?: string; action: "hero" | "fight" };
 
-export function Home({ onFight, onOpenHero }: { onFight: (floor: number) => void; onOpenHero: () => void }) {
+export function Home({ onFight, onOpenHero, onOpenQuests }: { onFight: (floor: number) => void; onOpenHero: () => void; onOpenQuests: () => void }) {
   const { player, setPlayer, run } = useGame();
   const [reward, setReward] = useState<RewardSummary | null>(null);
   const [floorsOpen, setFloorsOpen] = useState(false);
@@ -36,6 +36,11 @@ export function Home({ onFight, onOpenHero }: { onFight: (floor: number) => void
   }, [player.level, player.highestFloor, player.gold, run]);
 
   const goal = useMemo((): Goal => nextGoal(player, gear, next), [player, gear, next]);
+  const questsOpen = player.level >= UNLOCK_LEVEL.dailyQuests;
+  const [questDot, setQuestDot] = useState(false);
+  useEffect(() => {
+    if (questsOpen) run(api.quests).then((q) => q && setQuestDot(q.claimable));
+  }, [questsOpen, player.gold, player.level, run]);
 
   const claim = async () => {
     if (!player.afk.unlocked || player.afk.gold === 0) return;
@@ -112,6 +117,10 @@ export function Home({ onFight, onOpenHero }: { onFight: (floor: number) => void
       {free && !allCleared && <div className="muted pixel" style={{ textAlign: "center", fontSize: 12, marginTop: -4 }}>{t("home.free")}</div>}
 
       <div className="quick">
+        <button className="btn" onClick={onOpenQuests} disabled={!questsOpen}>
+          <SpriteImg sprite={questsOpen ? ICONS.star : ICONS.lock} scale={2} /> Quests
+          {questDot && <i className="red-dot" />}
+        </button>
         <button className="btn" onClick={() => setFloorsOpen(true)}>
           <SpriteImg sprite={ICONS.stairs} scale={2} /> Floors
         </button>
@@ -119,14 +128,11 @@ export function Home({ onFight, onOpenHero }: { onFight: (floor: number) => void
           <SpriteImg sprite={ICONS.bag} scale={2} /> Bag
           {gear && gear.bag.length > 0 && <i className="red-dot" />}
         </button>
-        <button className="btn" onClick={onOpenHero} disabled={player.level < UNLOCK_LEVEL.enhance}>
-          <SpriteImg sprite={player.level < UNLOCK_LEVEL.enhance ? ICONS.lock : ICONS.hammer} scale={2} /> Forge
-        </button>
       </div>
 
       {player.highestFloor === 0 && !floorsOpen && <Coach target=".btn.primary.big" text="Your first hunt starts here. Tap DESCEND!" />}
       {player.highestFloor > 0 && player.level < 8 && goal.text.startsWith("Equip") && !floorsOpen && !reward && (
-        <Coach target=".quick button:nth-child(2)" text="You found better gear! Open your bag and equip it." />
+        <Coach target=".quick button:nth-child(3)" text="You found better gear! Open your bag and equip it." />
       )}
       {floorsOpen && <FloorSheet onClose={() => setFloorsOpen(false)} onFight={onFight} onReward={setReward} />}
       {reward && <RewardSheet rewards={reward} onClose={() => setReward(null)} />}
