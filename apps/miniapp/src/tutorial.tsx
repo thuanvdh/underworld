@@ -44,7 +44,7 @@ export function Coach({ target, text, place = "above" }: { target: string; text:
 
 export interface Unlock {
   level: number;
-  id: "enhance" | "boons" | "afk";
+  id: "enhance" | "boons" | "afk" | "auto" | "speed";
   title: string;
   npc: string;
   line: string;
@@ -67,6 +67,15 @@ export const UNLOCKS: Unlock[] = [
     go: "hero",
   },
   {
+    level: UNLOCK_LEVEL.autoBattle,
+    id: "auto",
+    title: "Auto battle unlocked",
+    npc: "THREE-SCARS",
+    line: "You've proven you can swing. Let your instincts fight for you when you're busy.",
+    text: "Tap Auto in battle: skills fire as soon as they're ready (no Perfect bonus) and boons are picked for you.",
+    icon: ICONS.sword,
+  },
+  {
     level: UNLOCK_LEVEL.boons,
     id: "boons",
     title: "Boons unlocked",
@@ -84,6 +93,15 @@ export const UNLOCKS: Unlock[] = [
     text: "Gold, EXP, stones and gear pile up for 12 hours. Tap the chest or Claim to collect.",
     icon: ICONS.chest,
     go: "abyss",
+  },
+  {
+    level: UNLOCK_LEVEL.speedX2,
+    id: "speed",
+    title: "Battle speed ×2",
+    npc: "THREE-SCARS",
+    line: "No time to waste down there. Twice the pace, same blood.",
+    text: "Tap ×1 in battle to switch to ×2 speed. Results are exactly the same — only faster.",
+    icon: ICONS.bolt,
   },
 ];
 

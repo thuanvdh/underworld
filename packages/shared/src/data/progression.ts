@@ -21,6 +21,7 @@ export function addExp(level: number, exp: number, gained: number): { level: num
 // Detailed design §6.2
 export const UNLOCK_LEVEL = {
   enhance: 3,
+  autoBattle: 5,
   chooseClass: 5,
   boons: 6,
   afk: 7,
@@ -31,6 +32,7 @@ export const UNLOCK_LEVEL = {
   raid: 15,
   craft: 15,
   chest: 18,
+  speedX2: 10,
   reforge: 20,
   battlePass: 20,
   bounty: 25,

@@ -9,7 +9,7 @@ import { Coach } from "../tutorial.tsx";
 import { ICONS, itemSprite } from "../art/sprites/icons.ts";
 import { SpriteImg } from "../art/Sprite.tsx";
 import { usePixelCanvas } from "../art/usePixelCanvas.ts";
-import { ILVL_OVER_LEVEL, buildHero, chapterOf, power, type Item } from "@underworld/shared";
+import { ILVL_OVER_LEVEL, UNLOCK_LEVEL, buildHero, chapterOf, power, type Item } from "@underworld/shared";
 import { useGame } from "../state.tsx";
 import { haptic } from "../telegram.ts";
 
@@ -58,8 +58,11 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
   const coachRef = useRef<"idle" | "show" | "done">(firstFight ? "idle" : "done");
   const [coaching, setCoaching] = useState(false);
   const [equipOffer, setEquipOffer] = useState<{ item: Item; gain: number; done: boolean } | null>(null);
-  const autoRef = useRef(readSetting("uw-auto", "0") === "1");
-  const speedRef = useRef(Number(readSetting("uw-speed", "1")));
+  // Auto and ×2 are earned: below their unlock level the saved preference is ignored.
+  const autoUnlocked = player.level >= UNLOCK_LEVEL.autoBattle;
+  const speedUnlocked = player.level >= UNLOCK_LEVEL.speedX2;
+  const autoRef = useRef(autoUnlocked && readSetting("uw-auto", "0") === "1");
+  const speedRef = useRef(speedUnlocked ? Number(readSetting("uw-speed", "1")) : 1);
   const [auto, setAuto] = useState(autoRef.current);
   const [speed, setSpeed] = useState(speedRef.current);
   const [offer, setOffer] = useState<BoonId[] | null>(null);
@@ -197,11 +200,13 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
     setOffer(null);
   };
   const toggleAuto = () => {
+    if (!autoUnlocked) return;
     autoRef.current = !autoRef.current;
     setAuto(autoRef.current);
     writeSetting("uw-auto", autoRef.current ? "1" : "0");
   };
   const toggleSpeed = () => {
+    if (!speedUnlocked) return;
     speedRef.current = speedRef.current === 1 ? 2 : 1;
     setSpeed(speedRef.current);
     writeSetting("uw-speed", String(speedRef.current));
@@ -220,12 +225,21 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
       <div className="battle-hud">
         <span className="label">Floor {floor}</span>
         <span style={{ display: "flex", gap: 6 }}>
-          <button className="btn small" onClick={toggleSpeed}>
-            ×{speed}
+          <button className="btn small" onClick={toggleSpeed} disabled={!speedUnlocked} title={speedUnlocked ? undefined : `Unlocks at Lv ${UNLOCK_LEVEL.speedX2}`}>
+            {!speedUnlocked && <SpriteImg sprite={ICONS.lock} scale={1} />}×{speedUnlocked ? speed : 2}
+            {!speedUnlocked && <small className="muted"> Lv{UNLOCK_LEVEL.speedX2}</small>}
           </button>
           {!firstFight && (
-            <button className={`btn small ${auto ? "on-auto" : ""}`} style={auto ? { borderColor: "var(--teal)", color: "var(--teal)" } : undefined} onClick={toggleAuto}>
+            <button
+              className={`btn small ${auto ? "on-auto" : ""}`}
+              style={auto ? { borderColor: "var(--teal)", color: "var(--teal)" } : undefined}
+              onClick={toggleAuto}
+              disabled={!autoUnlocked}
+              title={autoUnlocked ? undefined : `Unlocks at Lv ${UNLOCK_LEVEL.autoBattle}`}
+            >
+              {!autoUnlocked && <SpriteImg sprite={ICONS.lock} scale={1} />}
               {t("battle.auto")}
+              {!autoUnlocked && <small className="muted"> Lv{UNLOCK_LEVEL.autoBattle}</small>}
             </button>
           )}
         </span>
