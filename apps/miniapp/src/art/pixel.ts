@@ -57,13 +57,25 @@ export function raster(s: Sprite): HTMLCanvasElement {
   canvas.height = h;
   const ctx = canvas.getContext("2d")!;
   const img = ctx.createImageData(w, h);
+  // Outlined sprites get automatic form shading: light from the top-left (the lamp side), shadow
+  // bottom-right. Gives hand-drawn grids a rounded, lit look without drawing extra tones.
+  const shade = s.palette["@"] !== undefined;
+  const at = (x: number, y: number) => s.rows[y]?.[x] ?? ".";
+  const edge = (ch: string) => ch === "@" || ch === "." || ch === " ";
   s.rows.forEach((row, y) => {
     for (let x = 0; x < row.length; x++) {
       const ch = row[x]!;
       if (ch === "." || ch === " ") continue;
       const color = s.palette[ch];
       if (!color) continue;
-      const [r, g, b, a] = hexToRgba(color);
+      let [r, g, b, a] = hexToRgba(color);
+      if (shade && ch !== "@") {
+        const lit = edge(at(x, y - 1)) || edge(at(x - 1, y));
+        const dark = edge(at(x, y + 1)) || edge(at(x + 1, y));
+        if (lit && !dark) [r, g, b] = mix([r, g, b], [255, 246, 220], 0.22);
+        else if (dark && !lit) [r, g, b] = mix([r, g, b], [8, 6, 16], 0.28);
+        else if (!lit && !dark && (edge(at(x + 1, y + 1)) || edge(at(x + 2, y)))) [r, g, b] = mix([r, g, b], [8, 6, 16], 0.12);
+      }
       const i = (y * w + x) * 4;
       img.data[i] = r;
       img.data[i + 1] = g;
@@ -103,6 +115,22 @@ export function drawSprite(ctx: CanvasRenderingContext2D, s: Sprite, x: number, 
   } else {
     ctx.drawImage(src, Math.round(x), Math.round(y), w, h);
   }
+}
+
+function mix(c: [number, number, number], to: [number, number, number], t: number): [number, number, number] {
+  return [Math.round(c[0] + (to[0] - c[0]) * t), Math.round(c[1] + (to[1] - c[1]) * t), Math.round(c[2] + (to[2] - c[2]) * t)];
+}
+
+/** Opaque pixels of a sprite with their colors (for pixel-dissolve effects). */
+export function spritePixels(s: Sprite): { x: number; y: number; color: string }[] {
+  const out: { x: number; y: number; color: string }[] = [];
+  const data = raster(s).getContext("2d")!.getImageData(0, 0, width(s), height(s)).data;
+  for (let y = 0; y < height(s); y++)
+    for (let x = 0; x < width(s); x++) {
+      const i = (y * width(s) + x) * 4;
+      if (data[i + 3]! > 0) out.push({ x, y, color: `rgb(${data[i]},${data[i + 1]},${data[i + 2]})` });
+    }
+  return out;
 }
 
 function hexToRgba(hex: string): [number, number, number, number] {

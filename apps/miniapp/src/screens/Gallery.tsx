@@ -5,6 +5,7 @@ import { HEROES, enemyScale, enemySprite } from "../art/sprites/characters.ts";
 import { ICONS } from "../art/sprites/icons.ts";
 import { SpriteImg } from "../art/Sprite.tsx";
 import { ItemIcon } from "../components/ItemIcon.tsx";
+import { LootRow } from "../components/RewardSheet.tsx";
 import { CLASS_NAMES, RARITY_NAMES } from "../i18n.ts";
 
 /** Dev-only art sheet (open /#gallery): every frame, sprite and chapter backdrop on one page. */
@@ -42,6 +43,13 @@ export function Gallery() {
           ))}
           <span className="muted" style={{ alignSelf: "center" }}>grayscale check</span>
         </div>
+      </div>
+
+      <div className="panel" id="loot">
+        <div className="label">Loot reveal</div>
+        <LootRow
+          rewards={{ gold: 12450, exp: 3200, stones: 6, gems: 20, dust: 0, autoSalvaged: 0, levelFrom: 9, levelTo: 10, items: RARITIES.map((r, i) => fake(r, SLOTS[i]!)) }}
+        />
       </div>
 
       <div className="panel">

@@ -43,7 +43,9 @@ export function SceneView({ chapter, classId, chestReady, onChest }: { chapter: 
 
       const chest = ICONS.chest;
       const cx = Math.round(w * 0.74);
-      const cy = bg.floorY - height(chest) + 2;
+      // The chest hops when loot is waiting.
+      const hop = stateRef.current.chestReady && Math.floor(t / 180) % 6 === 0 ? 1 : 0;
+      const cy = bg.floorY - height(chest) + 2 - hop;
       chestBox.current = { x: cx, y: cy, w: width(chest), h: height(chest) };
       drawSprite(ctx, chest, cx, cy, 1);
       if (stateRef.current.chestReady) {

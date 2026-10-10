@@ -47,7 +47,7 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
   const { player, setPlayer, run } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  usePixelCanvas(stageRef, canvasRef, { targetPixelWidth: 110, fillHeight: true });
+  usePixelCanvas(stageRef, canvasRef, { targetPixelWidth: 210, fillHeight: true });
   const battleRef = useRef<Battle | null>(null);
   const battleIdRef = useRef("");
   const pressRef = useRef(false);
@@ -67,6 +67,7 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
     let last = performance.now();
     let acc = 0;
     let renderer: BattleRenderer | null = null;
+    let endedAt = 0;
 
     const finish = async (battle: Battle) => {
       setFinishing(true);
@@ -85,7 +86,8 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
     const frame = (now: number) => {
       const battle = battleRef.current;
       if (!battle || !renderer || cancelled) return;
-      acc += Math.min(250, now - last) * speedRef.current;
+      // Hit-stop freezes sim time, slow-mo stretches the finishing blow; the renderer decides.
+      acc += Math.min(250, now - last) * speedRef.current * renderer.timeScale(now);
       last = now;
 
       while (acc >= TICK_MS && battle.phase === "fighting") {
@@ -96,21 +98,16 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
         const before = battle.events.length;
         battle.step(press);
         for (const e of battle.events.slice(before)) {
-          if (e.kind === "damage") renderer.damage(e.dst, e.amount, e.crit, e.skill, now);
-          else if (e.kind === "death") renderer.death(e.uid, now);
-          else if (e.kind === "heal") renderer.heal(e.dst, e.amount, now);
-          else if (e.kind === "attack") renderer.attack(e.src, now);
-          else if (e.kind === "dodge") renderer.text(e.dst, "MISS", "#9a98b0", now);
-          else if (e.kind === "skill") {
-            renderer.skill(e.src, now);
-            if (e.src === renderer.heroUid && e.quality !== "normal") {
-              setQuality({ q: e.quality, at: now });
-              haptic("heavy");
-            }
+          renderer.handle(e, now);
+          if (e.kind === "skill" && e.src === renderer.heroUid && e.quality !== "normal") {
+            setQuality({ q: e.quality, at: now });
+            haptic("heavy");
+          } else if (e.kind === "damage" && e.crit && e.dst !== renderer.heroUid) {
+            haptic("light");
           } else if (e.kind === "mechanic") {
             const text = MECHANIC_TEXT[e.what] ?? (e.what.startsWith("steal_") ? "The Debt Collector stole a boon!" : "");
             if (text) renderer.showBanner(text, now);
-          } else if (e.kind === "wave") renderer.showBanner(t("battle.wave", { wave: e.index + 1 }), now);
+          }
         }
         battle.events.length = 0;
       }
@@ -125,8 +122,12 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
       setFrame((n) => (n + 1) % 1_000_000);
 
       if (battle.ended) {
-        finish(battle);
-        return;
+        // Let the finishing blow, dissolve and coin shower play out before the result card.
+        if (!endedAt) endedAt = now;
+        if (now - endedAt > 1100) {
+          finish(battle);
+          return;
+        }
       }
       raf = requestAnimationFrame(frame);
     };

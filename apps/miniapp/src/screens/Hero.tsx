@@ -38,7 +38,7 @@ export function Hero() {
   const [equipped, setEquipped] = useState<Equipment>({});
   const [bag, setBag] = useState<Item[]>([]);
   const [selected, setSelected] = useState<Item | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
+  const [flash, setFlash] = useState<{ ok: boolean; text: string; key: number } | null>(null);
 
   const reload = useCallback(async () => {
     const r = await run(api.items);
@@ -78,8 +78,8 @@ export function Hero() {
     const r = await run(() => api.enhance(item.id));
     if (!r) return;
     haptic(r.success ? "success" : "error");
-    setFlash(r.success ? t("item.success") : t("item.fail"));
-    window.setTimeout(() => setFlash(null), 1200);
+    setFlash({ ok: r.success, text: r.success ? t("item.success") : t("item.fail"), key: Date.now() });
+    window.setTimeout(() => setFlash(null), 1400);
     setPlayer(r.player);
     setSelected(r.item);
     reload();
@@ -263,7 +263,7 @@ function ItemSheet(props: {
   delta: number;
   playerLevel: number;
   canAfford: (cost: { gold: number; stones: number }) => boolean;
-  flash: string | null;
+  flash: { ok: boolean; text: string; key: number } | null;
   onClose: () => void;
   onEquip: () => void;
   onEnhance: () => void;
@@ -276,7 +276,9 @@ function ItemSheet(props: {
     <div className="backdrop" onClick={props.onClose}>
       <div className="panel sheet" onClick={(e) => e.stopPropagation()}>
         <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-          <ItemIcon item={item} size="lg" />
+          <EnhanceFx flash={props.flash}>
+            <ItemIcon item={item} size="lg" />
+          </EnhanceFx>
           <div>
             <div className={`pixel r-${item.rarity}`} style={{ fontSize: 20 }}>
               {itemName(item)}
@@ -304,7 +306,11 @@ function ItemSheet(props: {
             {props.delta}
           </div>
         )}
-        {props.flash && <div className="pixel" style={{ textAlign: "center", fontSize: 18 }}>{props.flash}</div>}
+        {props.flash && (
+          <div className="pixel" style={{ textAlign: "center", fontSize: 18, color: props.flash.ok ? "var(--gold)" : "var(--muted)" }}>
+            {props.flash.text}
+          </div>
+        )}
 
         {item.enhance < MAX_ENHANCE && cost ? (
           <button className="btn primary" disabled={!props.canAfford(cost)} onClick={props.onEnhance}>
@@ -336,6 +342,31 @@ function ItemSheet(props: {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Success: the frame flares and embers burst out. Failure: it shakes and puffs gray smoke. */
+function EnhanceFx({ flash, children }: { flash: { ok: boolean; key: number } | null; children: React.ReactNode }) {
+  const bits = useMemo(
+    (): { x: number; y: number; c: string }[] => {
+      const n = flash?.ok ? 16 : 7;
+      return Array.from({ length: n }, (_: unknown, i: number) => {
+        const ang = (i / n) * Math.PI * 2 + Math.random() * 0.3;
+        const r = flash?.ok ? 50 + Math.random() * 25 : 26 + Math.random() * 14;
+        return { x: Math.cos(ang) * r, y: Math.sin(ang) * r - (flash?.ok ? 0 : 18), c: ["#fff3c4", "#ffc93c", "#ff7a1a", "#ffffff"][i % 4]! };
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [flash?.key],
+  );
+  return (
+    <div className={`enhance-fx ${flash ? (flash.ok ? "ok" : "fail") : ""}`} key={flash?.key ?? 0}>
+      {children}
+      {flash &&
+        bits.map((b, i) => (
+          <i key={i} className={flash.ok ? "ember" : "puff"} style={{ ["--x" as string]: `${b.x}px`, ["--y" as string]: `${b.y}px`, ["--c" as string]: b.c }} />
+        ))}
     </div>
   );
 }

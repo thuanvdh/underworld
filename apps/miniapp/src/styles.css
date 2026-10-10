@@ -629,7 +629,7 @@ button:disabled {
 }
 .loot {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 10px;
   justify-content: center;
   padding: 4px 0;
@@ -815,4 +815,231 @@ button:disabled {
   font-size: 30px;
   letter-spacing: 0.12em;
   color: var(--r-legendary);
+}
+
+/* ───────── Juice: loot beams, level up, count-ups, enhance bursts ───────── */
+.screen {
+  animation: screen-in 0.18s ease-out;
+}
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.battle-stage canvas {
+  animation: iris-in 0.35s ease-out;
+}
+@keyframes iris-in {
+  from { opacity: 0; filter: brightness(3); }
+}
+
+/* Teal button: a pixel light sweep every few seconds. */
+.btn.primary.big {
+  overflow: hidden;
+}
+.btn.primary.big::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  left: -60px;
+  background: linear-gradient(90deg, transparent, #ffffffa0, transparent);
+  transform: skewX(-20deg);
+  animation: sweep 3.2s steps(16) infinite;
+}
+@keyframes sweep {
+  0%, 70% { left: -60px; }
+  100% { left: 110%; }
+}
+
+/* Loot reveal: items pop in one by one with a rarity beam (beam height grows with rarity). */
+.drop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  animation: drop-pop 0.38s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.drop .beam {
+  position: absolute;
+  bottom: 50%;
+  left: 50%;
+  width: 22px;
+  transform: translateX(-50%);
+  transform-origin: bottom;
+  animation: beam-up 0.5s ease-out both;
+  animation-delay: inherit;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(0.5px);
+}
+.drop.uncommon .beam { height: 40px; background: linear-gradient(to top, #78d94a90, transparent); }
+.drop.rare .beam { height: 80px; background: linear-gradient(to top, #3fa0ffb0, transparent); width: 26px; }
+.drop.epic .beam { height: 130px; background: linear-gradient(to top, #b46cffc0, transparent); width: 30px; }
+.drop.legendary .beam { height: 240px; background: linear-gradient(to top, #ffc93c, #ff7a1ac0 40%, transparent); width: 36px; }
+.drop .spark {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: var(--c, #fff);
+  left: 50%;
+  top: 50%;
+  animation: spark-fly 0.9s ease-out infinite;
+  animation-delay: var(--d, 0s);
+  z-index: 3;
+  pointer-events: none;
+}
+@keyframes drop-pop {
+  0% { transform: scale(0) translateY(20px); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes beam-up {
+  0% { transform: translateX(-50%) scaleY(0); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateX(-50%) scaleY(1); opacity: 0.85; }
+}
+@keyframes spark-fly {
+  0% { transform: translate(0, 0); opacity: 1; }
+  100% { transform: translate(var(--x), var(--y)); opacity: 0; }
+}
+.legend-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 45;
+  background: radial-gradient(ellipse at 50% 55%, #ffc93c60, transparent 60%);
+  animation: legend 1.4s ease-out both;
+}
+.legend-flash::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 90px;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, transparent, #fff3c4c0, #ffc93c, #fff3c4c0, transparent);
+  animation: legend-beam 1.4s ease-out both;
+}
+@keyframes legend {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes legend-beam {
+  0% { transform: translateX(-50%) scaleX(0.1); }
+  20% { transform: translateX(-50%) scaleX(1.2); }
+  100% { transform: translateX(-50%) scaleX(0.6); }
+}
+.shake {
+  animation: shake 0.45s steps(9);
+}
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-5px, 2px); }
+  40% { transform: translate(4px, -3px); }
+  60% { transform: translate(-3px, 1px); }
+  80% { transform: translate(2px, -1px); }
+}
+
+/* Level up burst. */
+.levelup {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 18px 0 8px;
+  overflow: hidden;
+}
+.levelup::before {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  background: repeating-conic-gradient(#5cff8f30 0 10deg, transparent 10deg 30deg);
+  animation: rays 6s linear infinite, screen-in 0.4s ease-out;
+  border-radius: 50%;
+  mask: radial-gradient(circle, #000 20%, transparent 70%);
+}
+.levelup b {
+  position: relative;
+  font-family: var(--pixel);
+  font-size: 30px;
+  color: var(--heal);
+  text-shadow: 0 3px 0 #1f6a3a, 0 0 18px #5cff8f80;
+  animation: drop-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.levelup span {
+  position: relative;
+  font-family: var(--pixel);
+  color: var(--bone);
+}
+@keyframes rays {
+  to { transform: rotate(360deg); }
+}
+
+/* Count-up numbers and the floating delta next to Power. */
+.power {
+  position: relative;
+}
+.power .bump {
+  position: absolute;
+  left: 40px;
+  top: -6px;
+  font-family: var(--pixel);
+  color: var(--heal);
+  font-size: 14px;
+  animation: bump 1.2s ease-out both;
+  pointer-events: none;
+}
+.power.up b {
+  animation: glow-gold 0.8s ease-out;
+}
+@keyframes bump {
+  0% { transform: translateY(6px); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-14px); opacity: 0; }
+}
+@keyframes glow-gold {
+  0% { text-shadow: 0 2px 0 #7a5a10, 0 0 0 #ffc93c; transform: scale(1); }
+  30% { text-shadow: 0 2px 0 #7a5a10, 0 0 16px #ffc93c; transform: scale(1.12); }
+  100% { text-shadow: 0 2px 0 #7a5a10; transform: scale(1); }
+}
+
+/* Enhance: success burst / failure puff around the big item frame. */
+.enhance-fx {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+.enhance-fx.ok .frame {
+  animation: frame-pulse 0.6s ease-out;
+}
+.enhance-fx.fail {
+  animation: shake 0.45s steps(9);
+}
+.enhance-fx .ember {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  background: var(--c);
+  animation: spark-fly 0.7s ease-out both;
+  z-index: 4;
+  pointer-events: none;
+}
+.enhance-fx .puff {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  background: #6a6a7a;
+  opacity: 0.7;
+  animation: spark-fly 0.8s ease-out both;
+  z-index: 4;
+  pointer-events: none;
+}
+@keyframes frame-pulse {
+  0% { filter: brightness(1); transform: scale(1); }
+  30% { filter: brightness(2.2); transform: scale(1.12); }
+  100% { filter: brightness(1); transform: scale(1); }
 }
