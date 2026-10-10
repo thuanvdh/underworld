@@ -73,6 +73,27 @@ Stop the old Python demo bot (`bot/`) if it runs with the same token — two pol
 - No `Math.pow`/`Math.sqrt` inside combat — enemy stats are computed by `buildDungeonSetup` on the server and shipped inside the setup.
 - Any change to combat logic must keep `npm test` green, in particular the "server replay matches exactly" test.
 
+## Deploy (Render)
+
+The repo ships a `Dockerfile` (API + Mini App + bot in one process) and a `render.yaml` Blueprint.
+
+1. Render dashboard → **New → Blueprint** → connect GitHub → pick this repo. Render reads `render.yaml`.
+2. When asked, paste **`BOT_TOKEN`** (from @BotFather). `SESSION_SECRET` is generated automatically.
+3. Deploy. Render gives the service an `https://<name>.onrender.com` URL and sets `RENDER_EXTERNAL_URL`;
+   on start the app points the bot's webhook, buttons and menu at it. Open the bot → `/start`.
+4. Stop `npm run dev:telegram` locally first — the same token can't be used by two places at once.
+
+Every push to `main` redeploys. Player data lives on the 1 GB disk at `/data`, with snapshots in
+`/data/backups` every 6 hours (last 8 kept).
+
+**Plans:** `starter` (in `render.yaml`) keeps the game awake and allows the disk. On `free` the service sleeps
+after 15 minutes (first message wakes it in ~1 min) and has **no disk — player data resets on every deploy**;
+to try it anyway, change `plan: free` and delete the `disk:` block.
+
+Other hosts: any Docker host works — `docker build -t underworld . && docker run -p 3000:3000 -v data:/data
+-e BOT_TOKEN=… -e SESSION_SECRET=… -e PUBLIC_URL=https://your.domain underworld`, behind HTTPS.
+Set `BOT_MODE=polling` if the host can't receive webhooks.
+
 ## Deviations from the design docs (deliberate, for the first slice)
 
 - **Fastify instead of NestJS:** Node runs TypeScript natively here, and NestJS decorators need a build step.
