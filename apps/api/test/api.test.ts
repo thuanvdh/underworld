@@ -16,7 +16,7 @@ function setup(start = Date.UTC(2026, 9, 10, 8)) {
   return { app, advance: (ms: number) => (clock += ms) };
 }
 
-async function login(app: ReturnType<typeof setup>["app"], devUserId = 1) {
+async function login(app: ReturnType<typeof setup>["app"], devUserId = 1, pickClass = true) {
   const res = await app.inject({ method: "POST", url: "/api/auth/session", payload: { devUserId } });
   assert.equal(res.statusCode, 200);
   const body = res.json() as { token: string; player: { id: number } };
@@ -24,6 +24,7 @@ async function login(app: ReturnType<typeof setup>["app"], devUserId = 1) {
     const r = await app.inject({ method, url, payload: payload as object, headers: { authorization: `Bearer ${body.token}` } });
     return { status: r.statusCode, body: r.json() as Record<string, any> };
   };
+  if (pickClass) await call("POST", "/api/me/class", { classId: "butcher" });
   return { ...body, call };
 }
 
@@ -210,5 +211,31 @@ describe("serving the Mini App", () => {
     const api404 = await app.inject({ method: "GET", url: "/api/nope" });
     assert.equal(api404.statusCode, 404);
     assert.equal(api404.json().error, "not_found");
+  });
+});
+
+describe("character select", () => {
+  it("a new player must pick a class before fighting", async () => {
+    const { app } = setup();
+    const { call, player } = await login(app, 7, false);
+    assert.equal((player as unknown as { classChosen: boolean }).classChosen, false);
+    const blocked = await call("POST", "/api/battles/dungeon/start", { floor: 1 });
+    assert.equal(blocked.body.error, "class_not_chosen");
+    const picked = await call("POST", "/api/me/class", { classId: "hexer" });
+    assert.equal(picked.body.classChosen, true);
+    assert.equal(picked.body.classId, "hexer");
+    const ok = await call("POST", "/api/battles/dungeon/start", { floor: 1 });
+    assert.equal(ok.status, 200);
+  });
+
+  it("changing class is free for 72h, then locked; the first pick is never locked", async () => {
+    const { app, advance } = setup();
+    await login(app, 8, false);
+    advance(100 * 3600_000);
+    const late = await login(app, 8, false);
+    const first = await late.call("POST", "/api/me/class", { classId: "gunslinger" });
+    assert.equal(first.status, 200, "first pick works even after 72h");
+    const change = await late.call("POST", "/api/me/class", { classId: "butcher" });
+    assert.equal(change.body.error, "class_change_locked");
   });
 });

@@ -89,7 +89,18 @@ export function openDb(path: string): Db {
   const db = new DatabaseSync(path);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   db.exec(SCHEMA);
+  migrate(db);
   return db;
+}
+
+/** Additive, idempotent schema changes for databases created by older versions. */
+function migrate(db: Db): void {
+  const cols = new Set((db.prepare("PRAGMA table_info(players)").all() as { name: string }[]).map((c) => c.name));
+  if (!cols.has("class_chosen")) {
+    db.exec("ALTER TABLE players ADD COLUMN class_chosen INTEGER NOT NULL DEFAULT 0");
+    // Anyone who already fought has effectively picked their class.
+    db.exec("UPDATE players SET class_chosen = 1 WHERE highest_floor > 0");
+  }
 }
 
 /** Run `fn` in a write transaction; rolls back on any throw. */

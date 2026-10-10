@@ -33,7 +33,7 @@ const LEGENDARY_TEXT: Record<string, string> = {
 const LEFT: Slot[] = ["weapon", "helmet", "armor"];
 const RIGHT: Slot[] = ["gloves", "boots", "amulet"];
 
-export function Hero() {
+export function Hero({ onChangeClass }: { onChangeClass: () => void }) {
   const { player, setPlayer, run } = useGame();
   const [equipped, setEquipped] = useState<Equipment>({});
   const [bag, setBag] = useState<Item[]>([]);
@@ -109,6 +109,9 @@ export function Hero() {
         <div className="gear-hero">
           <SpriteImg sprite={HEROES[player.classId]} scale={6} />
           <span className="label small">{CLASS_NAMES[player.classId]}</span>
+          <button className="btn small" style={{ marginTop: 6 }} onClick={onChangeClass}>
+            Change class{classFree ? " · free" : ""}
+          </button>
         </div>
         <div className="gear-col">{RIGHT.map(slotButton)}</div>
       </div>
@@ -135,32 +138,6 @@ export function Hero() {
           ))}
         </div>
       </div>
-
-      {classFree && (
-        <div className="panel">
-          <div className="label" style={{ marginBottom: 8 }}>
-            {t("hero.class")}
-          </div>
-          <div className="class-pick">
-            {(["butcher", "gunslinger", "hexer"] as ClassId[]).map((c) => (
-              <button
-                key={c}
-                className={player.classId === c ? "on" : ""}
-                onClick={async () => {
-                  const p = await run(() => api.chooseClass(c));
-                  if (p) setPlayer(p);
-                }}
-              >
-                <SpriteImg sprite={HEROES[c]} scale={2} />
-                {CLASS_NAMES[c]}
-              </button>
-            ))}
-          </div>
-          <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-            {t("hero.classFree", { time: new Date(player.classChangeFreeUntil).toLocaleString() })}
-          </div>
-        </div>
-      )}
 
       <div className="panel">
         <div className="row" style={{ marginBottom: 8 }}>

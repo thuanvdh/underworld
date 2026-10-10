@@ -6,6 +6,7 @@ export interface PlayerView {
   id: number;
   name: string;
   classId: ClassId;
+  classChosen: boolean;
   level: number;
   exp: number;
   expToNext: number;

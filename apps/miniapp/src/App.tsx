@@ -6,6 +6,7 @@ import { TopBar } from "./components/TopBar.tsx";
 import { t } from "./i18n.ts";
 import { BattleScreen } from "./screens/BattleScreen.tsx";
 import { Hero } from "./screens/Hero.tsx";
+import { CharacterSelect } from "./screens/CharacterSelect.tsx";
 import { Home } from "./screens/Home.tsx";
 import { useGame } from "./state.tsx";
 
@@ -23,6 +24,23 @@ export function App() {
   const { player } = useGame();
   const [tab, setTab] = useState<Tab>("abyss");
   const [fighting, setFighting] = useState<{ floor: number; key: number } | null>(null);
+  const [changingClass, setChangingClass] = useState(false);
+
+  // New players pick a hunter before anything else.
+  if (!player.classChosen) {
+    return (
+      <div className="app">
+        <CharacterSelect mode="first" onDone={() => setTab("abyss")} />
+      </div>
+    );
+  }
+  if (changingClass) {
+    return (
+      <div className="app">
+        <CharacterSelect mode="change" onDone={() => setChangingClass(false)} onCancel={() => setChangingClass(false)} />
+      </div>
+    );
+  }
 
   if (fighting) {
     return (
@@ -43,7 +61,7 @@ export function App() {
     <div className="app">
       <TopBar />
       {tab === "abyss" && <Home onFight={(floor) => setFighting({ floor, key: Date.now() })} onOpenHero={() => setTab("hero")} />}
-      {tab === "hero" && <Hero />}
+      {tab === "hero" && <Hero onChangeClass={() => setChangingClass(true)} />}
       {(tab === "pvp" || tab === "guild" || tab === "shop") && (
         <div className="locked-screen">
           <div>

@@ -9,6 +9,8 @@ export interface Player {
   name: string;
   language: string;
   classId: ClassId;
+  /** False until the player confirms a class on the character select screen. */
+  classChosen: boolean;
   level: number;
   exp: number;
   gold: number;
@@ -36,6 +38,7 @@ interface Row {
   name: string;
   language: string;
   class: string;
+  class_chosen: number;
   level: number;
   exp: number;
   gold: number;
@@ -63,6 +66,7 @@ function fromRow(r: Row): Player {
     name: r.name,
     language: r.language,
     classId: r.class as ClassId,
+    classChosen: r.class_chosen === 1,
     level: r.level,
     exp: r.exp,
     gold: r.gold,
@@ -106,7 +110,7 @@ export function insertPlayer(db: Db, telegramId: number, name: string, language:
 
 export function savePlayer(db: Db, p: Player): void {
   db.prepare(
-    `UPDATE players SET name = ?, language = ?, class = ?, level = ?, exp = ?, gold = ?, gems = ?, stones = ?,
+    `UPDATE players SET name = ?, language = ?, class = ?, class_chosen = ?, level = ?, exp = ?, gold = ?, gems = ?, stones = ?,
        dust = ?, crystals = ?, cores = ?, energy = ?, energy_at = ?, afk_last_claim = ?, afk_carry_stones = ?,
        afk_carry_dust = ?, highest_floor = ?, forge_day = ?, forge_bought = ?, last_seen_at = ?
      WHERE id = ?`,
@@ -114,6 +118,7 @@ export function savePlayer(db: Db, p: Player): void {
     p.name,
     p.language,
     p.classId,
+    p.classChosen ? 1 : 0,
     p.level,
     p.exp,
     p.gold,

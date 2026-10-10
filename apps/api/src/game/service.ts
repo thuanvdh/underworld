@@ -96,8 +96,10 @@ export class GameService {
   chooseClass(playerId: number, classId: string): PlayerView {
     if (!CLASSES.includes(classId as ClassId)) throw new GameError("bad_request", "unknown class");
     return this.write(playerId, (p) => {
-      if (this.now() - p.createdAt > CLASS_CHANGE_FREE_MS) throw new GameError("class_change_locked");
+      // The first pick is always allowed; later changes are free only in the first 72 hours.
+      if (p.classChosen && this.now() - p.createdAt > CLASS_CHANGE_FREE_MS) throw new GameError("class_change_locked");
       p.classId = classId as ClassId;
+      p.classChosen = true;
     });
   }
 
@@ -115,6 +117,7 @@ export class GameService {
       const now = this.now();
       const p = this.load(playerId);
       this.regenEnergy(p, now);
+      if (!p.classChosen) throw new GameError("class_not_chosen");
       if (floor > Math.min(MAX_FLOOR, p.highestFloor + 1)) throw new GameError("floor_locked");
 
       const free = this.isFreeRun(p, floor, now);
@@ -356,6 +359,7 @@ export class GameService {
       id: p.id,
       name: p.name,
       classId: p.classId,
+      classChosen: p.classChosen,
       level: p.level,
       exp: p.exp,
       expToNext: Number.isFinite(expToNext(p.level)) ? expToNext(p.level) : 0,

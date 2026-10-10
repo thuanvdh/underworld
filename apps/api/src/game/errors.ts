@@ -13,7 +13,8 @@ export type ErrorCode =
   | "max_enhance"
   | "forge_cap"
   | "not_sweepable"
-  | "class_change_locked";
+  | "class_change_locked"
+  | "class_not_chosen";
 
 const STATUS: Partial<Record<ErrorCode, number>> = {
   unauthorized: 401,
