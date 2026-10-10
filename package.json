@@ -1,0 +1,27 @@
+{
+  "name": "underworld",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test \"packages/*/test/**/*.test.ts\" \"apps/api/test/**/*.test.ts\" \"apps/bot/test/**/*.test.ts\" \"apps/miniapp/test/**/*.test.ts\"",
+    "sim": "node tools/sim/src/main.ts",
+    "api": "node --env-file-if-exists=.env --watch apps/api/src/server.ts",
+    "miniapp": "npm run dev -w @underworld/miniapp",
+    "build": "npm run build -w @underworld/miniapp",
+    "bot": "node --env-file-if-exists=.env apps/bot/src/main.ts",
+    "dev:telegram": "node --env-file-if-exists=.env tools/dev-telegram.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.2"
+  }
+}

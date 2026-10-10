@@ -1,0 +1,22 @@
+# Render Blueprint: New → Blueprint → pick this repo. Render reads this file and creates the service.
+services:
+  - type: web
+    name: underworld
+    runtime: docker
+    # "starter" keeps the game awake 24/7 and allows the persistent disk below.
+    # On "free" the service sleeps after 15 min and has no disk: player data resets on every deploy.
+    plan: starter
+    region: frankfurt
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: BOT_TOKEN
+        sync: false # paste your @BotFather token in the Render dashboard
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DB_PATH
+        value: /data/underworld.db

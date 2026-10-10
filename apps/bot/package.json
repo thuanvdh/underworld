@@ -1,0 +1,15 @@
+{
+  "name": "@underworld/bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "grammy": "^1.46.0"
+  },
+  "exports": {
+    ".": "./src/bot.ts"
+  }
+}

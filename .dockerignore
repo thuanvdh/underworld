@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+.env
+.env.*
+*.db
+*.db-*
+.venv
+bot
+docs
+sim-report*.json
+*.pdf
+.git

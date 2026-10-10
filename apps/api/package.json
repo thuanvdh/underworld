@@ -1,0 +1,18 @@
+{
+  "name": "@underworld/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.ts",
+    "start:prod": "node src/production.ts"
+  },
+  "dependencies": {
+    "@underworld/combat": "*",
+    "@underworld/shared": "*",
+    "fastify": "^5.12.5",
+    "@fastify/static": "^10.1.6",
+    "@underworld/bot": "*",
+    "grammy": "^1.46.0"
+  }
+}
