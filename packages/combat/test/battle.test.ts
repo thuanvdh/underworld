@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { Rng, SLOTS, buildHero, generateItem, type Equipment, type Rarity } from "@underworld/shared";
+import { Rng, SLOTS, buildHero, generateItem, type ClassId, type Equipment, type Rarity } from "@underworld/shared";
 import { Battle, RING_TICKS, buildDungeonSetup, buildPvpSetup, simulate, type BattleEvent } from "@underworld/combat";
 
-function gear(seed: number, rarity: Rarity, ilvl: number, enhance = 0): Equipment {
+function gear(seed: number, rarity: Rarity, ilvl: number, enhance = 0, classId: ClassId = "butcher"): Equipment {
   const rng = new Rng(seed);
   const eq: Equipment = {};
   for (const slot of SLOTS) {
-    const item = generateItem(rng, { rarity, ilvl, slot });
+    const item = generateItem(rng, { rarity, ilvl, slot, classId });
     item.enhance = enhance;
     eq[slot] = item;
   }
@@ -32,7 +32,7 @@ describe("determinism", () => {
   it("server replay of a live client battle matches exactly", () => {
     for (const classId of ["butcher", "gunslinger", "hexer"] as const) {
       for (const floor of [3, 10, 20, 30, 40, 50, 60]) {
-        const hero = buildHero(classId, Math.min(60, floor + 2), gear(floor, "epic", floor));
+        const hero = buildHero(classId, Math.min(60, floor + 2), gear(floor, "epic", floor, 0, classId));
         const setup = buildDungeonSetup(floor, hero, 900 + floor);
         const live = new Battle(setup, { recordEvents: true });
         playInteractively(live, new Rng(floor));
@@ -43,7 +43,7 @@ describe("determinism", () => {
   });
 
   it("different seeds give different battles", () => {
-    const hero = buildHero("gunslinger", 15, gear(2, "rare", 15));
+    const hero = buildHero("gunslinger", 15, gear(2, "rare", 15, 0, "gunslinger"));
     const a = simulate(buildDungeonSetup(15, hero, 1));
     const b = simulate(buildDungeonSetup(15, hero, 2));
     assert.notDeepEqual(a, b);
@@ -103,7 +103,7 @@ describe("skill timing", () => {
 
 describe("pvp", () => {
   it("a much stronger attacker wins", () => {
-    const strong = buildHero("gunslinger", 40, gear(5, "legendary", 40));
+    const strong = buildHero("gunslinger", 40, gear(5, "legendary", 40, 0, "gunslinger"));
     const weak = buildHero("butcher", 10, gear(6, "common", 10));
     const r = simulate(buildPvpSetup(strong, weak, 3));
     assert.equal(r.victory, true);
@@ -120,7 +120,7 @@ describe("pvp", () => {
 describe("chapter bosses", () => {
   it("every chapter boss can be beaten by a well-geared hero", () => {
     for (const floor of [10, 20, 30, 40, 50, 60]) {
-      const hero = buildHero("gunslinger", Math.min(60, floor + 5), gear(floor, "legendary", floor + 5, 12));
+      const hero = buildHero("gunslinger", Math.min(60, floor + 5), gear(floor, "legendary", floor + 5, 12, "gunslinger"));
       const r = simulate(buildDungeonSetup(floor, hero, floor), undefined, { autopilot: "perfect" });
       assert.equal(r.victory, true, `floor ${floor}`);
     }

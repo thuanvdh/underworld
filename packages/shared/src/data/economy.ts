@@ -54,7 +54,16 @@ export const DROP_RARITY = {
   chest: { common: 0, uncommon: 0, rare: 7850, epic: 2000, legendary: 150 },
 } as const satisfies Record<string, Record<Rarity, number>>;
 
+/** Guaranteed first-clear drops that carry the tutorial (GDD §14.2): a Rare on floor 1, an Epic weapon from the floor 3 boss. */
+export const TUTORIAL_DROPS: Readonly<Record<number, { slot: "armor" | "weapon"; rarity: "rare" | "epic" }>> = {
+  1: { slot: "armor", rarity: "rare" },
+  3: { slot: "weapon", rarity: "epic" },
+};
+
 export const CHAPTER_BOSS_PITY = 40;
+
+/** Share of drops that belong to the class you're playing; the rest split between the other classes. */
+export const DROP_OWN_CLASS_BP = 6000;
 export const CHEST_PITY = 60;
 
 // Detailed design §12.1 — per-encounter rewards before floor scaling.

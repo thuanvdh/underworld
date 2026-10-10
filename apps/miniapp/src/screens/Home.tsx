@@ -7,6 +7,7 @@ import { RewardSheet } from "../components/RewardSheet.tsx";
 import { SceneView } from "../components/SceneView.tsx";
 import { SLOT_NAMES, short, t } from "../i18n.ts";
 import { useGame } from "../state.tsx";
+import { Coach } from "../tutorial.tsx";
 import { haptic } from "../telegram.ts";
 
 export const CHAPTER_NAMES: Record<string, string> = {
@@ -118,11 +119,15 @@ export function Home({ onFight, onOpenHero }: { onFight: (floor: number) => void
           <SpriteImg sprite={ICONS.bag} scale={2} /> Bag
           {gear && gear.bag.length > 0 && <i className="red-dot" />}
         </button>
-        <button className="btn" onClick={onOpenHero}>
-          <SpriteImg sprite={ICONS.hammer} scale={2} /> Forge
+        <button className="btn" onClick={onOpenHero} disabled={player.level < UNLOCK_LEVEL.enhance}>
+          <SpriteImg sprite={player.level < UNLOCK_LEVEL.enhance ? ICONS.lock : ICONS.hammer} scale={2} /> Forge
         </button>
       </div>
 
+      {player.highestFloor === 0 && !floorsOpen && <Coach target=".btn.primary.big" text="Your first hunt starts here. Tap DESCEND!" />}
+      {player.highestFloor > 0 && player.level < 8 && goal.text.startsWith("Equip") && !floorsOpen && !reward && (
+        <Coach target=".quick button:nth-child(2)" text="You found better gear! Open your bag and equip it." />
+      )}
       {floorsOpen && <FloorSheet onClose={() => setFloorsOpen(false)} onFight={onFight} onReward={setReward} />}
       {reward && <RewardSheet rewards={reward} onClose={() => setReward(null)} />}
     </div>

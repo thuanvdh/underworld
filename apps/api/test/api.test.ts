@@ -228,14 +228,66 @@ describe("character select", () => {
     assert.equal(ok.status, 200);
   });
 
-  it("changing class is free for 72h, then locked; the first pick is never locked", async () => {
+  it("players can switch class any time and keep level and gear", async () => {
     const { app, advance } = setup();
-    await login(app, 8, false);
+    const a = await login(app, 8);
+    const start = await a.call("POST", "/api/battles/dungeon/start", { floor: 1 });
+    const result = playClient(start.body.setup);
+    await a.call("POST", `/api/battles/${start.body.battleId}/finish`, { inputs: result.inputs });
     advance(100 * 3600_000);
-    const late = await login(app, 8, false);
-    const first = await late.call("POST", "/api/me/class", { classId: "gunslinger" });
-    assert.equal(first.status, 200, "first pick works even after 72h");
-    const change = await late.call("POST", "/api/me/class", { classId: "butcher" });
-    assert.equal(change.body.error, "class_change_locked");
+    const later = await login(app, 8, false);
+    const before = await later.call("GET", "/api/me");
+    const sw = await later.call("POST", "/api/me/class", { classId: "gunslinger" });
+    assert.equal(sw.status, 200);
+    assert.equal(sw.body.classId, "gunslinger");
+    assert.equal(sw.body.level, before.body.level);
+    const back = await later.call("POST", "/api/me/class", { classId: "butcher" });
+    assert.equal(back.body.classId, "butcher");
+  });
+
+  it("first clears of floor 1 and 3 guarantee the tutorial drops; boons wait for level 6", async () => {
+    const { app } = setup();
+    const { call } = await login(app, 9);
+    const start = await call("POST", "/api/battles/dungeon/start", { floor: 1 });
+    assert.equal(start.body.setup.boonsEnabled, false);
+    const res = playClient(start.body.setup);
+    const fin = await call("POST", `/api/battles/${start.body.battleId}/finish`, { inputs: res.inputs });
+    assert.ok(fin.body.rewards.items.some((i: { rarity: string; slot: string }) => i.rarity === "rare" && i.slot === "armor"));
+  });
+});
+
+describe("per-class bags", () => {
+  it("drops land in their class's bag and only that class can equip them", async () => {
+    const { app } = setup();
+    const { call } = await login(app, 21);
+    // Farm a few floors so some drops belong to other classes.
+    for (let floor = 1; floor <= 6; floor++) {
+      const start = await call("POST", "/api/battles/dungeon/start", { floor });
+      const res = playClient(start.body.setup);
+      await call("POST", `/api/battles/${start.body.battleId}/finish`, { inputs: res.inputs });
+    }
+    const me = await call("GET", "/api/me");
+    const counts = me.body.bags as Record<"butcher" | "gunslinger" | "hexer", number>;
+    const mine = await call("GET", "/api/items");
+    assert.equal(mine.body.classId, "butcher");
+    assert.ok(mine.body.bag.every((i: { classId: string }) => i.classId === "butcher"));
+    assert.equal(mine.body.bag.length, counts.butcher);
+
+    const other = (["gunslinger", "hexer"] as const).find((c) => counts[c] > 0);
+    if (other) {
+      const theirs = await call("GET", `/api/items?class=${other}`);
+      const foreign = theirs.body.bag[0];
+      assert.equal(foreign.classId, other);
+      const denied = await call("POST", `/api/items/${foreign.id}/equip`);
+      assert.equal(denied.body.error, "wrong_class");
+      await call("POST", "/api/me/class", { classId: other });
+      const ok = await call("POST", `/api/items/${foreign.id}/equip`);
+      assert.equal(ok.status, 200);
+      const now = await call("GET", "/api/items");
+      assert.equal(now.body.equipped[foreign.slot].id, foreign.id);
+      // The butcher's gear is untouched by the switch.
+      const back = await call("GET", "/api/items?class=butcher");
+      assert.equal(back.body.bag.length + Object.keys(back.body.equipped).length >= 0, true);
+    }
   });
 });

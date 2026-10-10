@@ -996,7 +996,7 @@ Xem GDD mục 13.2 và 13.3. Mã gói dùng trong hệ thống:
 | Đá Cường Hóa ×30 | 120 💎 (3 lần/ngày) |
 | Tinh Thể ×10 | 150 💎 (2 lần/ngày) |
 | Năng lượng ×60 | 50 / 80 / 120 💎 |
-| Đổi lớp | 500 💎 |
+| Đổi lớp | Miễn phí (cấp độ dùng chung, mỗi lớp có túi đồ riêng) |
 | Đổi tên | 200 💎 (lần đầu miễn phí) |
 | Skin | 600 – 1.800 💎 |
 
@@ -1219,3 +1219,10 @@ REST qua HTTPS. Mọi yêu cầu gửi kèm header `X-Telegram-Init-Data` (máy 
 2. ~~**Thừa vàng**~~: đã thêm mua đá ở Lò rèn (mục 14.2). Tỉ lệ tiêu vàng hiện là 95%.
 3. **Phù Thủy Ngầm** tiến chậm hơn 2 lớp kia ở ngày 7–14 (tầng 49 so với 54). Theo dõi thêm sau khi có dữ liệu beta.
 4. **Mô phỏng chưa có:** PvP, bang hội, chế tạo, đúc lại, Tầng Vô Tận, người nạp lớn. Các phần này cần thêm vào trước khi soft launch.
+
+### 25.4. Cập nhật: túi đồ theo lớp và hướng dẫn tân thủ
+
+- **Đồ thuộc lớp:** mỗi món có `classId`. Tỉ lệ rơi: 60% lớp đang chơi, 20% mỗi lớp còn lại. Mô phỏng 300 người chơi × 30 ngày cho thấy lực chiến chỉ thấp hơn khoảng 2–6%, mốc qua tầng 60 vẫn quanh ngày 30, nên không cần cân bằng lại.
+- **Thưởng hướng dẫn:** lần đầu qua tầng 1 chắc chắn rơi áo Hiếm, boss tầng 3 lần đầu chắc chắn rơi vũ khí Sử Thi. Cả hai đều thuộc lớp đang chơi.
+- **Mở theo cấp:** Phúc lợi chỉ xuất hiện từ cấp 6. Nâng cấp ở cấp 3 và AFK ở cấp 7 mở kèm popup giới thiệu của NPC.
+- **Trong trận đầu:** lần đầu kỹ năng sẵn sàng, game chậm lại và có ngón tay chỉ nút. Boss tầng 3 có gợi ý phá khiên bằng Perfect. Màn kết quả có nút trang bị ngay món tốt nhất.

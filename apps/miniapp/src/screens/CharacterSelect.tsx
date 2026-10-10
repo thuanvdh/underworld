@@ -69,7 +69,7 @@ const STAT_KEYS = ["hp", "atk", "def", "spd"] as const;
 const STAT_MAX = Object.fromEntries(STAT_KEYS.map((k) => [k, Math.max(...ORDER.map((c) => CLASSES[c].base[k]))])) as Record<(typeof STAT_KEYS)[number], number>;
 
 function skillIcon(c: ClassId) {
-  return c === "butcher" ? itemSprite("weapon") : c === "gunslinger" ? ICONS.gun : ICONS.potion;
+  return itemSprite("weapon", false, c);
 }
 
 /**
@@ -82,8 +82,6 @@ export function CharacterSelect({ mode, onDone, onCancel }: { mode: "first" | "c
   const [busy, setBusy] = useState(false);
   const info = INFO[picked];
   const base = CLASSES[picked].base;
-  const freeChange = player.serverTime < player.classChangeFreeUntil;
-  const locked = mode === "change" && !freeChange;
   const same = mode === "change" && picked === player.classId;
 
   const confirm = async () => {
@@ -99,8 +97,8 @@ export function CharacterSelect({ mode, onDone, onCancel }: { mode: "first" | "c
   return (
     <div className="select">
       <div className="select-head">
-        {mode === "first" ? <div className="logo">UNDERWORLD</div> : <span className="label">Change class</span>}
-        <div className="label small">{mode === "first" ? "Choose your hunter" : freeChange ? `Free until ${new Date(player.classChangeFreeUntil).toLocaleString()}` : "Class change is locked"}</div>
+        {mode === "first" ? <div className="logo">UNDERWORLD</div> : <span className="label">Switch hunter</span>}
+        <div className="label small">{mode === "first" ? "Choose your hunter" : "Level and gear are shared · switch any time"}</div>
       </div>
 
       <Stage classId={picked} />
@@ -177,6 +175,7 @@ export function CharacterSelect({ mode, onDone, onCancel }: { mode: "first" | "c
             >
               <SpriteImg sprite={HEROES[c]} scale={2} />
               <span className="pixel">{INFO[c].name}</span>
+              {mode === "change" && player.bags[c] > 0 && <span className="count">{player.bags[c]}</span>}
               {mode === "change" && c === player.classId && <small className="muted">current</small>}
             </button>
           ))}
@@ -187,11 +186,11 @@ export function CharacterSelect({ mode, onDone, onCancel }: { mode: "first" | "c
               Back
             </button>
           )}
-          <button className="btn primary big" style={{ flex: 1 }} disabled={busy || locked || same} onClick={confirm}>
+          <button className="btn primary big" style={{ flex: 1 }} disabled={busy || same} onClick={confirm}>
             {mode === "first" ? "START HUNTING" : same ? "CURRENT CLASS" : `SWITCH TO ${info.name.toUpperCase()}`}
           </button>
         </div>
-        {mode === "first" && <div className="muted" style={{ textAlign: "center", fontSize: 12 }}>You can switch for free during your first 72 hours.</div>}
+        {mode === "first" && <div className="muted" style={{ textAlign: "center", fontSize: 12 }}>You can switch hunters any time — tap your portrait.</div>}
       </div>
     </div>
   );

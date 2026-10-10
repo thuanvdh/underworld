@@ -6,6 +6,7 @@
  */
 
 export type ClassId = "butcher" | "gunslinger" | "hexer";
+export const CLASS_IDS: readonly ClassId[] = ["butcher", "gunslinger", "hexer"];
 
 export type Slot = "weapon" | "helmet" | "armor" | "gloves" | "boots" | "amulet";
 export const SLOTS: readonly Slot[] = ["weapon", "helmet", "armor", "gloves", "boots", "amulet"];
@@ -63,6 +64,8 @@ export interface MainStat {
 
 export interface Item {
   id: string;
+  /** The class that can wear it. Drops can belong to any class and go to that class's bag. */
+  classId: ClassId;
   slot: Slot;
   rarity: Rarity;
   ilvl: number;

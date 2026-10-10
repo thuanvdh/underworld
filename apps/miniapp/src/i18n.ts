@@ -142,8 +142,10 @@ export function statLine(key: StatKey | SubstatKey, value: number): [string, str
   return [STAT_NAMES[key], `+${shown}`];
 }
 
+const WEAPON_NAMES: Record<ClassId, string> = { butcher: "Cleaver", gunslinger: "Revolver", hexer: "Staff" };
+
 export function itemName(item: Item): string {
-  const base = SLOT_NAMES[item.slot];
+  const base = item.slot === "weapon" && item.classId ? WEAPON_NAMES[item.classId] : SLOT_NAMES[item.slot];
   return item.setCode ? `${SET_NAMES[item.setCode]} ${base}` : `${RARITY_NAMES[item.rarity]} ${base}`;
 }
 

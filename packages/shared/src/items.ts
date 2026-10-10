@@ -1,4 +1,4 @@
-import { ENHANCE_BP_PER_LEVEL, ENHANCE_STEPS, MAX_ENHANCE, SALVAGE, SALVAGE_STONE_REFUND_BP } from "./data/economy.ts";
+import { DROP_OWN_CLASS_BP, ENHANCE_BP_PER_LEVEL, ENHANCE_STEPS, MAX_ENHANCE, SALVAGE, SALVAGE_STONE_REFUND_BP } from "./data/economy.ts";
 import {
   AMULET_MAIN_STATS,
   LEGENDARY_EFFECTS,
@@ -9,9 +9,11 @@ import {
   type MainStatFormula,
 } from "./data/items.ts";
 import type { Rng } from "./rng.ts";
-import { SLOTS, type Item, type MainStat, type Rarity, type SetCode, type Slot, type StatKey, type SubstatKey } from "./types.ts";
+import { CLASS_IDS, SLOTS, type ClassId, type Item, type MainStat, type Rarity, type SetCode, type Slot, type StatKey, type SubstatKey } from "./types.ts";
 
 export interface ItemSpec {
+  /** Owner class; random if omitted. */
+  classId?: ClassId;
   rarity: Rarity;
   ilvl: number;
   slot?: Slot;
@@ -47,6 +49,7 @@ export function generateItem(rng: Rng, spec: ItemSpec): Item {
 
   return {
     id: itemId(rng),
+    classId: spec.classId ?? rng.pick(CLASS_IDS),
     slot,
     rarity: spec.rarity,
     ilvl,
@@ -57,6 +60,13 @@ export function generateItem(rng: Rng, spec: ItemSpec): Item {
     enhance: 0,
     luck: 0,
   };
+}
+
+/** Which class a drop belongs to: usually the one you're playing, sometimes another. */
+export function dropClass(rng: Rng, playing: ClassId): ClassId {
+  if (rng.chance(DROP_OWN_CLASS_BP)) return playing;
+  const others = CLASS_IDS.filter((c) => c !== playing);
+  return rng.pick(others);
 }
 
 function rollSubstat(rng: Rng, key: SubstatKey, ilvl: number): number {

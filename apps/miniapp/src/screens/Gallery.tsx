@@ -12,6 +12,7 @@ import { CLASS_NAMES, RARITY_NAMES } from "../i18n.ts";
 export function Gallery() {
   const fake = (rarity: Item["rarity"], slot: Item["slot"], enhance = 0): Item => ({
     id: `${rarity}-${slot}`,
+    classId: (["butcher", "gunslinger", "hexer"] as const)[rarity.length % 3]!,
     slot,
     rarity,
     ilvl: 10,

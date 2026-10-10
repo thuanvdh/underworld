@@ -190,7 +190,10 @@ Sau Đại Sụp Đổ, loài người sống trong **Thành Phố Ngầm (The U
 | **Phù Thủy Ngầm (Hexer)** | Phép, hiệu ứng | *Mưa Độc*: gây độc, làm chậm, choáng | Điều khiển trận đấu |
 
 - MVP bản 1 chỉ có **Đồ Tể**. Hai lớp còn lại ra ở bản 3.
-- Được **đổi lớp miễn phí trong 72 giờ đầu.** Sau đó đổi lớp tốn Kim Cương, nhưng giữ nguyên trang bị (trang bị dùng chung cho cả 3 lớp).
+- **Người chơi mới chọn lớp ở màn Chọn nhân vật trước khi vào game.**
+- **Đổi lớp miễn phí, bất cứ lúc nào** (bấm vào ảnh chân dung hoặc nút trong tab Hero). **Cấp độ dùng chung** cho cả tài khoản.
+- **Mỗi lớp có túi đồ và bộ trang bị riêng.** Mỗi món đồ thuộc về một lớp và chỉ lớp đó mặc được. Vũ khí có hình riêng theo lớp: Đồ Tể cầm dao chặt, Xạ Thủ cầm súng, Phù Thủy cầm gậy phép.
+- **Quái rơi đồ của mọi lớp:** 60% thuộc lớp đang chơi, 40% chia đều cho hai lớp còn lại. Đồ của lớp nào tự vào túi của lớp đó, nên chơi một lớp vẫn tích đồ cho các lớp khác.
 
 ### 6.2. Chỉ số
 
@@ -571,7 +574,7 @@ Nguyên liệu nâng cấp và chế tạo là vật phẩm, không tính là ti
 | **1:30** | Lên cấp 2, 3. Mỗi lần lên cấp có hiệu ứng | Tiến bộ nhanh |
 | **2:30** | Boss tầng 3. Bấm kỹ năng phá khiên boss. **Chắc chắn rơi vũ khí Sử Thi (tím)** | Phấn khích |
 | **4:00** | Lão Tý (Old Rusty) xuất hiện: mở **Nâng cấp**, hướng dẫn nâng vũ khí lên +3 (miễn phí) | Biết cách mạnh hơn |
-| **6:00** | Tầng 4–5: **thử nhanh cả 3 lớp**, mỗi lớp 1 đợt quái, rồi chọn lớp (có thể đổi miễn phí trong 72 giờ) | Có quyền lựa chọn |
+| **0:10** | **Màn Chọn nhân vật** (trước trận đầu): xem từng lớp với vai trò, độ khó, chỉ số, kỹ năng, rồi bấm START HUNTING. Đổi lớp về sau miễn phí | Có quyền lựa chọn |
 | **8:00** | Mở **phúc lợi ngẫu nhiên** ở tầng 6 | Mới mẻ |
 | **10:00** | Mở **AFK**: *"Nhân vật vẫn cày khi mày đi vắng."* Tặng ngay 2 giờ AFK. Nhận một đống đồ | Bất ngờ, hào phóng |
 | **12:00** | Cấp 8 → mở **Đấu trường**. 3 trận đầu gặp bot, thắng cả 3, lên bậc Đồng II | Thắng người khác (cảm giác vậy) |

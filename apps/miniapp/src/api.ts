@@ -27,6 +27,8 @@ export interface PlayerView {
   classChangeFreeUntil: number;
   afk: { unlocked: boolean; hours: number; maxHours: number; gold: number; exp: number; stones: number; items: number };
   forge: { boughtToday: number; nextPrice: number | null };
+  /** Unequipped items waiting in each class's bag. */
+  bags: Record<ClassId, number>;
   serverTime: number;
 }
 
@@ -100,7 +102,7 @@ export const api = {
     request<{ result: BattleResult; rewards: RewardSummary; player: PlayerView }>("POST", `/battles/${battleId}/finish`, { inputs }),
   sweep: (floor: number, times: number) => request<{ rewards: RewardSummary; player: PlayerView }>("POST", "/dungeon/sweep", { floor, times }),
   claimAfk: () => request<{ rewards: RewardSummary; player: PlayerView }>("POST", "/afk/claim", {}),
-  items: () => request<{ equipped: Equipment; bag: Item[] }>("GET", "/items"),
+  items: (classId?: ClassId) => request<{ classId: ClassId; equipped: Equipment; bag: Item[] }>("GET", `/items${classId ? `?class=${classId}` : ""}`),
   equip: (id: string) => request<PlayerView>("POST", `/items/${id}/equip`, {}),
   enhance: (id: string) => request<{ success: boolean; item: Item; player: PlayerView }>("POST", `/items/${id}/enhance`, {}),
   salvage: (itemIds: string[]) => request<{ salvaged: number; player: PlayerView }>("POST", "/items/salvage", { itemIds }),

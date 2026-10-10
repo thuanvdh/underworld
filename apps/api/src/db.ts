@@ -37,12 +37,12 @@ CREATE TABLE IF NOT EXISTS items (
   id            TEXT    PRIMARY KEY,
   player_id     INTEGER NOT NULL REFERENCES players(id),
   data          TEXT    NOT NULL,
+  class         TEXT    NOT NULL DEFAULT 'butcher',
   equipped_slot TEXT,
   locked        INTEGER NOT NULL DEFAULT 0,
   created_at    INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS items_player ON items(player_id);
-CREATE UNIQUE INDEX IF NOT EXISTS items_equipped ON items(player_id, equipped_slot) WHERE equipped_slot IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS floor_progress (
   player_id INTEGER NOT NULL,
@@ -101,6 +101,15 @@ function migrate(db: Db): void {
     // Anyone who already fought has effectively picked their class.
     db.exec("UPDATE players SET class_chosen = 1 WHERE highest_floor > 0");
   }
+  // Per-class bags: every item belongs to one class; each class equips its own set.
+  const itemCols = new Set((db.prepare("PRAGMA table_info(items)").all() as { name: string }[]).map((c) => c.name));
+  if (!itemCols.has("class")) {
+    db.exec("ALTER TABLE items ADD COLUMN class TEXT NOT NULL DEFAULT 'butcher'");
+    db.exec("UPDATE items SET class = (SELECT class FROM players WHERE players.id = items.player_id)");
+  }
+  db.exec("DROP INDEX IF EXISTS items_equipped");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS items_equipped_class ON items(player_id, class, equipped_slot) WHERE equipped_slot IS NOT NULL");
+  db.exec("CREATE INDEX IF NOT EXISTS items_player_class ON items(player_id, class)");
 }
 
 /** Run `fn` in a write transaction; rolls back on any throw. */

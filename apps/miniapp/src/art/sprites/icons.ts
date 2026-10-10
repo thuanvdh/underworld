@@ -1,4 +1,4 @@
-import type { Slot } from "@underworld/shared";
+import type { ClassId, Slot } from "@underworld/shared";
 import { C } from "../palette.ts";
 import { outlined, recolor, type Sprite } from "../pixel.ts";
 
@@ -124,7 +124,48 @@ const amulet: Sprite = {
   palette: { c: "#9a9aa8", f: "#c9a548", F: "#f0d27a", g: "#2fae5a", G: "#6cf09a", d: "#146a32" },
 };
 
+const staff: Sprite = {
+  rows: [
+    "...........zZ...",
+    "..........zZZz..",
+    "..........zZzz..",
+    "...........zz...",
+    "..........n.....",
+    ".........nN.....",
+    "........nN......",
+    ".......nN.......",
+    "......nN........",
+    ".....nN.........",
+    "....nN..........",
+    "...nN...........",
+    "..nN............",
+    ".nN.............",
+    "n...............",
+  ],
+  palette: { z: "#6cc31f", Z: "#d9ff8a", n: "#5a3d24", N: "#8e6638" },
+};
+
+const revolver: Sprite = {
+  rows: [
+    "................",
+    "................",
+    "................",
+    "..hhhhhhhhhhhhG.",
+    ".hgggggggggggGG.",
+    ".hggggggggggggg.",
+    "..hhhgggnnn.....",
+    "....hgnnNNn.....",
+    "....nnNNnn......",
+    "...nNNNn........",
+    "..nNNnn.........",
+    "..nnn...........",
+  ],
+  palette: { ...METAL, n: "#5a3d24", N: "#8e6638" },
+};
+
 const ITEM_BASE: Record<Slot, Sprite> = { weapon, helmet, armor, gloves, boots, amulet };
+/** Weapons look different per class; armor pieces are shared shapes. */
+const WEAPON_BASE: Record<ClassId, Sprite> = { butcher: weapon, gunslinger: revolver, hexer: staff };
 const ITEMS: Record<Slot, Sprite> = Object.fromEntries(
   Object.entries(ITEM_BASE).map(([slot, s]) => [slot, outlined(s, OUT)]),
 ) as Record<Slot, Sprite>;
@@ -137,9 +178,17 @@ const LEGENDARY_ITEMS: Record<Slot, Sprite> = Object.fromEntries(
   ]),
 ) as Record<Slot, Sprite>;
 
-export function itemSprite(slot: Slot, legendary = false): Sprite {
+const WEAPONS = Object.fromEntries(Object.entries(WEAPON_BASE).map(([c, s]) => [c, outlined(s, OUT)])) as Record<ClassId, Sprite>;
+const LEGENDARY_WEAPONS = Object.fromEntries(
+  Object.entries(WEAPON_BASE).map(([c, s]) => [c, outlined(recolor(s, { g: "#ffc93c", G: "#fff3c4", h: "#b8860b", z: "#ffc93c", Z: "#fff3c4" }), OUT)]),
+) as Record<ClassId, Sprite>;
+
+export function itemSprite(slot: Slot, legendary = false, classId?: ClassId): Sprite {
+  if (slot === "weapon" && classId) return legendary ? LEGENDARY_WEAPONS[classId] : WEAPONS[classId];
   return legendary ? LEGENDARY_ITEMS[slot] : ITEMS[slot];
 }
+
+export const CLASS_COLOR: Record<ClassId, string> = { butcher: "#e8573f", gunslinger: "#ffc93c", hexer: "#6cc31f" };
 
 // ───────────────────────── UI icons ─────────────────────────
 
@@ -321,4 +370,25 @@ export function navSprite(icon: NavIcon, active: boolean): Sprite {
   return active ? NAV_ACTIVE[icon] : NAV_IDLE[icon];
 }
 
-export const ALL_ICON_SPRITES: Sprite[] = [...Object.values(ITEM_BASE), ...Object.values(ICONS), ...Object.values(NAV_IDLE)];
+export const ALL_ICON_SPRITES: Sprite[] = [...Object.values(ITEM_BASE), staff, revolver, ...Object.values(ICONS), ...Object.values(NAV_IDLE)];
+
+/** Pointing hand for tutorial coach marks (points up; flip with CSS to point down). */
+export const FINGER: Sprite = outlined(
+  {
+    rows: [
+      "..ww......",
+      "..wW......",
+      "..wW......",
+      "..wWwwww..",
+      "wwwWwWwWw.",
+      "wWwWWWWWWw",
+      "wWWWWWWWWw",
+      ".wWWWWWWw.",
+      "..wWWWWw..",
+      "...cccc...",
+      "...cccc...",
+    ],
+    palette: { w: "#f0d0b0", W: "#ffe8d0", c: "#4fe3e0" },
+  },
+  OUT,
+);

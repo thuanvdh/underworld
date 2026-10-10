@@ -37,8 +37,8 @@ describe("hero stats", () => {
 
   it("set pieces add their stat bonus", () => {
     const rng = new Rng(3);
-    const helmet = generateItem(rng, { rarity: "rare", ilvl: 20, slot: "helmet", setCode: "gravedigger" });
-    const armor = generateItem(rng, { rarity: "rare", ilvl: 20, slot: "armor", setCode: "gravedigger" });
+    const helmet = generateItem(rng, { rarity: "rare", ilvl: 20, slot: "helmet", setCode: "gravedigger", classId: "butcher" });
+    const armor = generateItem(rng, { rarity: "rare", ilvl: 20, slot: "armor", setCode: "gravedigger", classId: "butcher" });
     const one = buildHero("butcher", 20, { helmet });
     const two = buildHero("butcher", 20, { helmet, armor: { ...armor, setCode: null } });
     const twoSet = buildHero("butcher", 20, { helmet, armor });
@@ -95,14 +95,38 @@ describe("progression", () => {
 });
 
 describe("rewards", () => {
+  it("most drops belong to the class being played, the rest to other classes", () => {
+    const rng = new Rng(77);
+    const counts = { butcher: 0, gunslinger: 0, hexer: 0 };
+    for (let i = 0; i < 300; i++) {
+      for (const it of dungeonRewards(rng, { classId: "hexer", floor: 10, firstClear: false, boons: [], sets: {}, pity: 0 }).items) counts[it.classId] += 1;
+    }
+    const total = counts.butcher + counts.gunslinger + counts.hexer;
+    assert.ok(counts.hexer / total > 0.5 && counts.hexer / total < 0.7, JSON.stringify(counts));
+    assert.ok(counts.butcher > 0 && counts.gunslinger > 0);
+  });
+
+  it("gear from another class adds nothing to a hero", () => {
+    const rng = new Rng(3);
+    const weapon = generateItem(rng, { rarity: "epic", ilvl: 20, slot: "weapon", classId: "gunslinger" });
+    const bare = buildHero("butcher", 20, {});
+    assert.deepEqual(buildHero("butcher", 20, { weapon }).stats, bare.stats);
+    assert.notDeepEqual(buildHero("gunslinger", 20, { weapon }).stats, buildHero("gunslinger", 20, {}).stats);
+  });
+
+  it("the floor 3 boss guarantees an Epic weapon on first clear", () => {
+    const first = dungeonRewards(new Rng(4), { classId: "butcher", floor: 3, firstClear: true, boons: [], sets: {}, pity: 0 });
+    assert.ok(first.items.some((i) => i.rarity === "epic" && i.slot === "weapon"));
+  });
+
   it("chapter boss pity forces a Legendary on run 41", () => {
-    const r = dungeonRewards(new Rng(1), { floor: 10, firstClear: false, boons: [], sets: {}, pity: CHAPTER_BOSS_PITY });
+    const r = dungeonRewards(new Rng(1), { classId: "butcher", floor: 10, firstClear: false, boons: [], sets: {}, pity: CHAPTER_BOSS_PITY });
     assert.ok(r.items.some((i) => i.rarity === "legendary"));
     assert.equal(r.pity, 0);
   });
 
   it("the first chapter boss drop belongs to the chapter set", () => {
-    const r = dungeonRewards(new Rng(2), { floor: 20, firstClear: true, boons: [], sets: {}, pity: 0 });
+    const r = dungeonRewards(new Rng(2), { classId: "butcher", floor: 20, firstClear: true, boons: [], sets: {}, pity: 0 });
     assert.equal(r.items.at(-2)?.setCode ?? r.items.find((i) => i.setCode)?.setCode, "gravedigger");
     assert.equal(r.gems, 20);
   });

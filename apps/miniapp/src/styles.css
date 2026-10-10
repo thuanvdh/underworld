@@ -1180,3 +1180,107 @@ button:disabled {
 .class-tabs small {
   font-size: 10px;
 }
+
+/* ───────── Tutorial ───────── */
+.coach {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 35;
+}
+.coach-ring {
+  position: fixed;
+  border: 3px solid var(--teal);
+  box-shadow: 0 0 0 9999px rgba(5, 5, 9, 0.45), 0 0 16px var(--teal);
+  animation: coach-pulse 1s ease-in-out infinite;
+}
+.coach-finger {
+  position: fixed;
+  animation: coach-tap 0.9s ease-in-out infinite;
+}
+.coach-bubble {
+  position: fixed;
+  width: 240px;
+  font-size: 14px;
+  text-align: center;
+  padding: 10px 12px;
+  border-color: var(--teal-dark);
+  animation: screen-in 0.25s ease-out;
+}
+@keyframes coach-pulse {
+  50% { border-color: #b8fffd; }
+}
+@keyframes coach-tap {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 8px; }
+}
+.unlock-card {
+  align-items: stretch;
+}
+.unlock-icon {
+  display: grid;
+  place-items: center;
+  height: 84px;
+  animation: drop-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  filter: drop-shadow(0 0 12px rgba(92, 255, 143, 0.4));
+}
+.npc-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--abyss);
+  border: 2px solid var(--rivet);
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.npc-line b {
+  color: var(--gold);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.portrait {
+  cursor: pointer;
+}
+
+/* Class tag on item frames (top-left). */
+.frame .cls {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 7px;
+  height: 7px;
+  box-shadow: 0 0 0 1px #000;
+  z-index: 2;
+}
+.bag-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.bag-hint .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  box-shadow: 0 0 0 1px #000;
+  margin-right: 4px;
+}
+.class-tabs button {
+  position: relative;
+}
+.class-tabs .count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--danger);
+  color: #fff;
+  font-family: var(--pixel);
+  font-size: 11px;
+  line-height: 18px;
+  box-shadow: 0 0 0 2px var(--abyss);
+}

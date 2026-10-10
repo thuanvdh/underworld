@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ILVL_OVER_LEVEL,
   MAX_ENHANCE,
+  UNLOCK_LEVEL,
   buildHero,
   enhanceChanceBp,
   enhanceCost,
@@ -14,7 +15,7 @@ import {
 } from "@underworld/shared";
 import { api } from "../api.ts";
 import { HEROES } from "../art/sprites/characters.ts";
-import { ICONS } from "../art/sprites/icons.ts";
+import { CLASS_COLOR, ICONS } from "../art/sprites/icons.ts";
 import { SpriteImg } from "../art/Sprite.tsx";
 import { ItemIcon } from "../components/ItemIcon.tsx";
 import { CLASS_NAMES, RARITY_NAMES, SET_NAMES, SLOT_NAMES, itemName, short, statLine, t } from "../i18n.ts";
@@ -95,10 +96,10 @@ export function Hero({ onChangeClass }: { onChangeClass: () => void }) {
   };
 
   const junk = bag.filter((it) => (it.rarity === "common" || it.rarity === "uncommon") && delta(it) <= 0).map((it) => it.id);
-  const classFree = player.serverTime < player.classChangeFreeUntil;
+  const forgeOpen = player.level >= UNLOCK_LEVEL.enhance;
   const slotButton = (slot: Slot) => (
     <button key={slot} className="slot-btn" onClick={() => equipped[slot] && setSelected(equipped[slot]!)} title={SLOT_NAMES[slot]}>
-      <ItemIcon item={equipped[slot]} slot={slot} size="md" />
+      <ItemIcon item={equipped[slot]} slot={slot} size="md" classId={player.classId} />
     </button>
   );
 
@@ -110,7 +111,7 @@ export function Hero({ onChangeClass }: { onChangeClass: () => void }) {
           <SpriteImg sprite={HEROES[player.classId]} scale={6} />
           <span className="label small">{CLASS_NAMES[player.classId]}</span>
           <button className="btn small" style={{ marginTop: 6 }} onClick={onChangeClass}>
-            Change class{classFree ? " · free" : ""}
+            Switch hunter
           </button>
         </div>
         <div className="gear-col">{RIGHT.map(slotButton)}</div>
@@ -149,7 +150,8 @@ export function Hero({ onChangeClass }: { onChangeClass: () => void }) {
             {player.stones} stones · {player.dust} dust
           </span>
         </div>
-        <div className="row">
+        {!forgeOpen && <div className="muted">Old Rusty opens the forge at Lv {UNLOCK_LEVEL.enhance}.</div>}
+        <div className="row" style={forgeOpen ? undefined : { display: "none" }}>
           <button
             className="btn small wide"
             disabled={player.dust < 10}
@@ -181,11 +183,29 @@ export function Hero({ onChangeClass }: { onChangeClass: () => void }) {
 
       <div className="panel">
         <div className="row" style={{ marginBottom: 8 }}>
-          <span className="label">{t("hero.bag", { count: bag.length })}</span>
+          <span className="label">
+            {CLASS_NAMES[player.classId]}'s bag ({bag.length})
+          </span>
           <button className="btn small danger" disabled={junk.length === 0} onClick={() => salvage(junk)}>
             Salvage junk ({junk.length})
           </button>
         </div>
+        {(["butcher", "gunslinger", "hexer"] as ClassId[]).some((c) => c !== player.classId && player.bags[c] > 0) && (
+          <div className="bag-hint" style={{ marginBottom: 8 }}>
+            <span className="muted">Waiting for other hunters:</span>
+            {(["butcher", "gunslinger", "hexer"] as ClassId[])
+              .filter((c) => c !== player.classId && player.bags[c] > 0)
+              .map((c) => (
+                <span key={c} className="pixel">
+                  <i className="dot" style={{ background: CLASS_COLOR[c] }} />
+                  {CLASS_NAMES[c]} {player.bags[c]}
+                </span>
+              ))}
+            <button className="btn small" onClick={onChangeClass}>
+              Switch
+            </button>
+          </div>
+        )}
         {bag.length === 0 && <div className="muted">{t("hero.empty")}</div>}
         <div className="items">
           {sortedBag.map(({ it, d }) => (
@@ -213,6 +233,7 @@ export function Hero({ onChangeClass }: { onChangeClass: () => void }) {
           equipped={isEquipped(selected)}
           delta={isEquipped(selected) ? 0 : delta(selected)}
           playerLevel={player.level}
+          forgeOpen={forgeOpen}
           canAfford={(cost) => player.gold >= cost.gold && player.stones >= cost.stones}
           flash={flash}
           onClose={() => setSelected(null)}
@@ -239,6 +260,7 @@ function ItemSheet(props: {
   equipped: boolean;
   delta: number;
   playerLevel: number;
+  forgeOpen: boolean;
   canAfford: (cost: { gold: number; stones: number }) => boolean;
   flash: { ok: boolean; text: string; key: number } | null;
   onClose: () => void;
@@ -289,7 +311,11 @@ function ItemSheet(props: {
           </div>
         )}
 
-        {item.enhance < MAX_ENHANCE && cost ? (
+        {!props.forgeOpen ? (
+          <div className="muted pixel" style={{ textAlign: "center" }}>
+            Enhancing unlocks at Lv {UNLOCK_LEVEL.enhance}
+          </div>
+        ) : item.enhance < MAX_ENHANCE && cost ? (
           <button className="btn primary" disabled={!props.canAfford(cost)} onClick={props.onEnhance}>
             <span>
               {t("item.enhance", { next: item.enhance + 1 })} · <SpriteImg sprite={ICONS.coin} scale={1} /> {short(cost.gold)} · {cost.stones} stones

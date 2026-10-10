@@ -41,7 +41,8 @@ export function buildHero(classId: ClassId, level: number, equipment: Equipment)
 
   for (const slot of SLOTS) {
     const item = equipment[slot];
-    if (!item) continue;
+    // Gear only works on its own class (defensive: the server never equips it elsewhere).
+    if (!item || (item.classId && item.classId !== classId)) continue;
     for (const m of enhancedMain(item)) flat[m.key] += m.value;
     for (const s of item.substats) {
       switch (s.key) {

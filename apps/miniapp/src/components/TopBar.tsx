@@ -31,7 +31,7 @@ export function useLiveEnergy(): { energy: number; nextIn: string } {
 }
 
 /** Fixed resource bar from the style tile: portrait, segmented energy, gold, gems and the big Power number. */
-export function TopBar() {
+export function TopBar({ onPortrait }: { onPortrait?: () => void }) {
   const { player } = useGame();
   const { energy, nextIn } = useLiveEnergy();
   const power = useCountUp(player.power, 900, false);
@@ -49,7 +49,7 @@ export function TopBar() {
 
   return (
     <div className="topbar">
-      <div className="portrait">
+      <div className="portrait" onClick={onPortrait} title="Switch hunter">
         <SpriteImg sprite={HEROES[player.classId]} scale={3} />
         <div className="lv">Lv {player.level}</div>
       </div>

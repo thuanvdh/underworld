@@ -4,11 +4,12 @@ import { Battle, type BattleResult, type SkillQuality } from "@underworld/combat
 import { api, type RewardSummary } from "../api.ts";
 import { BattleRenderer } from "../battle/renderer.ts";
 import { LootRow } from "../components/RewardSheet.tsx";
-import { BOON_TEXT, SKILL_NAMES, t } from "../i18n.ts";
+import { BOON_TEXT, SKILL_NAMES, itemName, t } from "../i18n.ts";
+import { Coach } from "../tutorial.tsx";
 import { ICONS, itemSprite } from "../art/sprites/icons.ts";
 import { SpriteImg } from "../art/Sprite.tsx";
 import { usePixelCanvas } from "../art/usePixelCanvas.ts";
-import { chapterOf } from "@underworld/shared";
+import { ILVL_OVER_LEVEL, buildHero, chapterOf, power, type Item } from "@underworld/shared";
 import { useGame } from "../state.tsx";
 import { haptic } from "../telegram.ts";
 
@@ -51,6 +52,12 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
   const battleRef = useRef<Battle | null>(null);
   const battleIdRef = useRef("");
   const pressRef = useRef(false);
+  // Tutorial (GDD §14.2): the very first fight teaches the skill button; the floor 3 boss teaches Perfect.
+  const firstFight = useRef(floor === 1 && player.highestFloor === 0).current;
+  const shieldLesson = useRef(floor === 3 && player.highestFloor < 3).current;
+  const coachRef = useRef<"idle" | "show" | "done">(firstFight ? "idle" : "done");
+  const [coaching, setCoaching] = useState(false);
+  const [equipOffer, setEquipOffer] = useState<{ item: Item; gain: number; done: boolean } | null>(null);
   const autoRef = useRef(readSetting("uw-auto", "0") === "1");
   const speedRef = useRef(Number(readSetting("uw-speed", "1")));
   const [auto, setAuto] = useState(autoRef.current);
@@ -68,6 +75,9 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
     let acc = 0;
     let renderer: BattleRenderer | null = null;
     let endedAt = 0;
+    let lessonUntil = 0;
+    let shieldTaught = false;
+    if (firstFight) autoRef.current = false;
 
     const finish = async (battle: Battle) => {
       setFinishing(true);
@@ -80,6 +90,17 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
       }
       setPlayer(res.player);
       setOutcome({ result: res.result, rewards: res.rewards });
+      // Offer to equip the best new drop for the class being played.
+      const gear = await run(api.items);
+      if (gear && !cancelled) {
+        let best: { item: Item; gain: number } | null = null;
+        for (const it of res.rewards.items) {
+          if (it.classId !== res.player.classId || it.ilvl > res.player.level + ILVL_OVER_LEVEL) continue;
+          const gain = power(buildHero(res.player.classId, res.player.level, { ...gear.equipped, [it.slot]: it }).stats) - res.player.power;
+          if (gain > 0 && (!best || gain > best.gain)) best = { item: it, gain };
+        }
+        if (best) setEquipOffer({ ...best, done: false });
+      }
       haptic(res.result.victory ? "success" : "error");
     };
 
@@ -87,18 +108,32 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
       const battle = battleRef.current;
       if (!battle || !renderer || cancelled) return;
       // Hit-stop freezes sim time, slow-mo stretches the finishing blow; the renderer decides.
-      acc += Math.min(250, now - last) * speedRef.current * renderer.timeScale(now);
+      const lesson = coachRef.current === "show" ? 0.12 : now < lessonUntil ? 0.3 : 1;
+      acc += Math.min(250, now - last) * speedRef.current * renderer.timeScale(now) * lesson;
       last = now;
 
       while (acc >= TICK_MS && battle.phase === "fighting") {
         acc -= TICK_MS;
         const skill = battle.skillState();
+        if (coachRef.current === "idle" && skill.ready) {
+          coachRef.current = "show";
+          setCoaching(true);
+        }
         const press = pressRef.current || (autoRef.current && skill.ready);
+        if (press && coachRef.current === "show") {
+          coachRef.current = "done";
+          setCoaching(false);
+        }
         pressRef.current = false;
         const before = battle.events.length;
         battle.step(press);
         for (const e of battle.events.slice(before)) {
           renderer.handle(e, now);
+          if (shieldLesson && !shieldTaught && e.kind === "shield") {
+            shieldTaught = true;
+            lessonUntil = now + 2200;
+            renderer.showBanner("SHIELD! Land a PERFECT skill to shatter it", now);
+          }
           if (e.kind === "skill" && e.src === renderer.heroUid && e.quality !== "normal") {
             setQuality({ q: e.quality, at: now });
             haptic("heavy");
@@ -188,9 +223,11 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
           <button className="btn small" onClick={toggleSpeed}>
             ×{speed}
           </button>
-          <button className={`btn small ${auto ? "on-auto" : ""}`} style={auto ? { borderColor: "var(--teal)", color: "var(--teal)" } : undefined} onClick={toggleAuto}>
-            {t("battle.auto")}
-          </button>
+          {!firstFight && (
+            <button className={`btn small ${auto ? "on-auto" : ""}`} style={auto ? { borderColor: "var(--teal)", color: "var(--teal)" } : undefined} onClick={toggleAuto}>
+              {t("battle.auto")}
+            </button>
+          )}
         </span>
       </div>
 
@@ -208,7 +245,7 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
           <div className="skill-wrap">
-            {skill.ready && !auto && <div className="ring" style={{ width: ringSize, height: ringSize }} />}
+            {skill.ready && (!auto || firstFight) && <div className="ring" style={{ width: ringSize, height: ringSize }} />}
             {showQuality && (
               <div className="quality" style={{ color: quality!.q === "perfect" ? "var(--teal)" : "var(--heal)" }}>
                 {t(quality!.q === "perfect" ? "quality.perfect" : "quality.good")}
@@ -229,7 +266,9 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
         <div />
       </div>
 
-      {offer && (
+      {coaching && <Coach target=".skill-btn" text="Your skill is ready! Tap when the ring touches the button edge for a PERFECT hit." />}
+
+            {offer && (
         <div className="backdrop modal-center">
           <div className="panel sheet">
             <div className="label" style={{ textAlign: "center" }}>
@@ -275,11 +314,26 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
               </div>
             )}
             <LootRow rewards={outcome.rewards} />
+            {equipOffer && (
+              <button
+                className={`btn ${equipOffer.done ? "" : "primary"}`}
+                disabled={equipOffer.done}
+                onClick={async () => {
+                  const p = await run(() => api.equip(equipOffer.item.id));
+                  if (!p) return;
+                  haptic("success");
+                  setPlayer(p);
+                  setEquipOffer({ ...equipOffer, done: true });
+                }}
+              >
+                {equipOffer.done ? `Equipped ${itemName(equipOffer.item)} ✓` : `EQUIP ${itemName(equipOffer.item).toUpperCase()} · +${equipOffer.gain} POWER`}
+              </button>
+            )}
             <div className="row">
               <button className="btn wide" onClick={() => onExit()}>
                 {t("battle.home")}
               </button>
-              <button className="btn primary wide" onClick={() => onExit(nextFloor ?? floor)}>
+              <button className={`btn wide ${equipOffer && !equipOffer.done ? "" : "primary"}`} onClick={() => onExit(nextFloor ?? floor)}>
                 {nextFloor ? t("battle.next") : t("battle.retry")}
               </button>
             </div>

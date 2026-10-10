@@ -7,13 +7,16 @@ import {
   ENCOUNTER_REWARDS,
   FIRST_CLEAR_CHAPTER_GEMS,
   FIRST_CLEAR_MULT,
+  TUTORIAL_DROPS,
 } from "./data/economy.ts";
-import { generateItem } from "./items.ts";
+import { dropClass, generateItem } from "./items.ts";
 import type { Rng } from "./rng.ts";
-import { RARITIES, type Item, type Rarity, type SetCode } from "./types.ts";
+import { RARITIES, type ClassId, type Item, type Rarity, type SetCode } from "./types.ts";
 
 export interface DungeonRewardInput {
   floor: number;
+  /** The class being played: most drops are for it, the rest for the other classes. */
+  classId: ClassId;
   firstClear: boolean;
   boons: readonly BoonId[];
   sets: Partial<Record<SetCode, number>>;
@@ -73,9 +76,12 @@ export function dungeonRewards(rng: Rng, input: DungeonRewardInput): DungeonRewa
       if (fortune && rng.chance(2000)) rarity = upgradeRarity(rarity);
       // The first chapter boss drop always belongs to the chapter set.
       const setCode = key === "chapterBoss" && n === 0 ? chapterOf(floor).setCode : null;
-      out.items.push(generateItem(rng, { rarity, ilvl: floor, setCode }));
+      out.items.push(generateItem(rng, { rarity, ilvl: floor, setCode, classId: dropClass(rng, input.classId) }));
     }
   }
+
+  const tutorial = input.firstClear ? TUTORIAL_DROPS[floor] : undefined;
+  if (tutorial) out.items.push(generateItem(rng, { rarity: tutorial.rarity, ilvl: floor, slot: tutorial.slot, classId: input.classId }));
 
   if (chapterBoss) {
     out.pity = out.items.some((it) => it.rarity === "legendary") ? 0 : input.pity + 1;

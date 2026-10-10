@@ -13,6 +13,7 @@ import {
   UNLOCK_LEVEL,
   addExp,
   afkPerHour,
+  dropClass,
   buildHero,
   dungeonRewards,
   enhanceCost,
@@ -197,7 +198,7 @@ export class SimPlayer {
     this.afkCarry.dust -= dust;
     this.dust += dust;
     for (let i = 0; i < Math.floor(hours); i++) {
-      this.receiveItem(generateItem(this.rng, { rarity: this.rng.weighted(DROP_RARITY.afk), ilvl: this.highestFloor }));
+      this.receiveItem(generateItem(this.rng, { rarity: this.rng.weighted(DROP_RARITY.afk), ilvl: this.highestFloor, classId: dropClass(this.rng, this.classId) }));
     }
   }
 
@@ -224,7 +225,7 @@ export class SimPlayer {
       if (!result.victory) {
         if (pushing) this.attemptsOnNext += 1;
         if (!free) this.energy += Math.floor((ENERGY.perRun * ENERGY.refundOnLossBp) / 10000);
-        const consolation = dungeonRewards(this.rng, { floor, firstClear: false, boons: [], sets: {}, pity: 0, cleared: result.wavesCleared });
+        const consolation = dungeonRewards(this.rng, { classId: this.classId, floor, firstClear: false, boons: [], sets: {}, pity: 0, cleared: result.wavesCleared });
         this.earnGold("dungeon", consolation.gold);
         this.gainExp(consolation.exp);
         return true;
@@ -237,7 +238,7 @@ export class SimPlayer {
     const chapter = Math.ceil(floor / 10);
     const firstClear = floor > this.highestFloor;
     const sets = buildHero(this.classId, this.level, this.equipment).sets;
-    const r = dungeonRewards(this.rng, { floor, firstClear, boons: boons as never, sets, pity: this.pity[chapter] ?? 0 });
+    const r = dungeonRewards(this.rng, { classId: this.classId, floor, firstClear, boons: boons as never, sets, pity: this.pity[chapter] ?? 0 });
     if (floor % 10 === 0) this.pity[chapter] = r.pity;
     if (firstClear) {
       this.highestFloor = floor;
@@ -291,7 +292,7 @@ export class SimPlayer {
       let rarity = this.rng.weighted(DROP_RARITY.chest);
       if (this.chestPity >= CHEST_PITY) rarity = "legendary";
       if (rarity === "legendary") this.chestPity = 0;
-      this.receiveItem(generateItem(this.rng, { rarity, ilvl: this.highestFloor }));
+      this.receiveItem(generateItem(this.rng, { rarity, ilvl: this.highestFloor, classId: this.classId }));
     }
   }
 
@@ -300,6 +301,11 @@ export class SimPlayer {
   private bag: Item[] = [];
 
   private receiveItem(item: Item): void {
+    // This virtual player only plays one class; other classes' gear is salvaged (a real player keeps it).
+    if (item.classId !== this.classId) {
+      this.salvage(item);
+      return;
+    }
     if (item.rarity === "legendary") this.legendariesFound += 1;
     this.bag.push(item);
   }

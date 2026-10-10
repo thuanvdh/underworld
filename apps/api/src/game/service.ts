@@ -13,6 +13,7 @@ import {
   afkPerHour,
   buildHero,
   chapterOf,
+  dropClass,
   dungeonRewards,
   enhanceCost,
   expToNext,
@@ -95,9 +96,8 @@ export class GameService {
 
   chooseClass(playerId: number, classId: string): PlayerView {
     if (!CLASSES.includes(classId as ClassId)) throw new GameError("bad_request", "unknown class");
+    // Switching is free at any time: level and gear are shared by all three classes.
     return this.write(playerId, (p) => {
-      // The first pick is always allowed; later changes are free only in the first 72 hours.
-      if (p.classChosen && this.now() - p.createdAt > CLASS_CHANGE_FREE_MS) throw new GameError("class_change_locked");
       p.classId = classId as ClassId;
       p.classChosen = true;
     });
@@ -124,7 +124,8 @@ export class GameService {
       if (!free) this.spendEnergy(p, ENERGY.perRun);
 
       const seed = randomInt(0, 2 ** 32);
-      const setup = buildDungeonSetup(floor, buildHero(p.classId, p.level, this.equipment(p.id)), seed);
+      const setup = buildDungeonSetup(floor, buildHero(p.classId, p.level, this.equipment(p)), seed);
+      setup.boonsEnabled = p.level >= UNLOCK_LEVEL.boons;
       const battleId = randomUUID();
       this.db
         .prepare("INSERT INTO battles (id, player_id, floor, seed, setup, free_energy, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'started', ?)")
@@ -162,6 +163,7 @@ export class GameService {
         const pityCode = `chapter_${chapter}`;
         const firstClear = floor > p.highestFloor;
         const r = dungeonRewards(rng, {
+          classId: p.classId,
           floor,
           firstClear,
           boons: result.boons as BoonId[],
@@ -179,7 +181,7 @@ export class GameService {
         this.pay(p, summary, { gold: r.gold, exp: r.exp, stones: r.stones, gems: r.gems }, "dungeon", ref, now);
         this.giveItems(p, r.items, summary, now);
       } else {
-        const r = dungeonRewards(rng, { floor, firstClear: false, boons: [], sets: {}, pity: 0, cleared: result.wavesCleared });
+        const r = dungeonRewards(rng, { classId: p.classId, floor, firstClear: false, boons: [], sets: {}, pity: 0, cleared: result.wavesCleared });
         this.pay(p, summary, { gold: r.gold, exp: r.exp, stones: 0, gems: 0 }, "dungeon_loss", ref, now);
         if (!row.free_energy) p.energy += Math.floor((ENERGY.perRun * ENERGY.refundOnLossBp) / 10000);
       }
@@ -204,11 +206,11 @@ export class GameService {
 
       const summary = emptySummary(p.level);
       const rng = new Rng(randomInt(0, 2 ** 32));
-      const sets = buildHero(p.classId, p.level, this.equipment(p.id)).sets;
+      const sets = buildHero(p.classId, p.level, this.equipment(p)).sets;
       for (let i = 0; i < times; i++) {
         this.spendEnergy(p, ENERGY.perRun);
         const pityCode = `chapter_${chapterOf(floor).number}`;
-        const r = dungeonRewards(rng, { floor, firstClear: false, boons: [], sets, pity: this.pity(p.id, pityCode) });
+        const r = dungeonRewards(rng, { classId: p.classId, floor, firstClear: false, boons: [], sets, pity: this.pity(p.id, pityCode) });
         if (isChapterBossFloor(floor)) this.setPity(p.id, pityCode, r.pity);
         this.pay(p, summary, { gold: r.gold, exp: r.exp, stones: r.stones, gems: r.gems }, "sweep", `floor:${floor}`, now);
         this.giveItems(p, r.items, summary, now);
@@ -236,7 +238,7 @@ export class GameService {
       summary.dust += pending.dust;
       const rng = new Rng(randomInt(0, 2 ** 32));
       const items = Array.from({ length: pending.itemRolls }, () =>
-        generateItem(rng, { rarity: rng.weighted(DROP_RARITY.afk), ilvl: Math.max(1, p.highestFloor) }),
+        generateItem(rng, { rarity: rng.weighted(DROP_RARITY.afk), ilvl: Math.max(1, p.highestFloor), classId: dropClass(rng, p.classId) }),
       );
       this.giveItems(p, items, summary, now);
       summary.levelTo = p.level;
@@ -247,26 +249,28 @@ export class GameService {
 
   // ───────────────────────── items ─────────────────────────
 
-  items(playerId: number): { equipped: Equipment; bag: Item[] } {
-    const rows = this.db.prepare("SELECT data, equipped_slot FROM items WHERE player_id = ? ORDER BY created_at DESC").all(playerId) as {
-      data: string;
-      equipped_slot: string | null;
-    }[];
+  /** One class's gear: what it wears and its bag. Defaults to the class being played. */
+  items(playerId: number, classId?: string): { classId: ClassId; equipped: Equipment; bag: Item[] } {
+    const cls = (classId && CLASSES.includes(classId as ClassId) ? classId : this.load(playerId).classId) as ClassId;
+    const rows = this.db
+      .prepare("SELECT data, class, equipped_slot FROM items WHERE player_id = ? AND class = ? ORDER BY created_at DESC")
+      .all(playerId, cls) as { data: string; class: string; equipped_slot: string | null }[];
     const equipped: Equipment = {};
     const bag: Item[] = [];
     for (const r of rows) {
-      const item = JSON.parse(r.data) as Item;
+      const item = parseItem(r.data, r.class);
       if (r.equipped_slot) equipped[r.equipped_slot as Slot] = item;
       else bag.push(item);
     }
-    return { equipped, bag };
+    return { classId: cls, equipped, bag };
   }
 
   equip(playerId: number, itemId: string): PlayerView {
     return this.write(playerId, (p) => {
       const item = this.item(p.id, itemId);
+      if (item.classId !== p.classId) throw new GameError("wrong_class");
       if (item.ilvl > p.level + ILVL_OVER_LEVEL) throw new GameError("item_too_high");
-      const current = this.equipment(p.id)[item.slot];
+      const current = this.equipment(p)[item.slot];
       if (current?.id === item.id) return;
       if (current) {
         // Free enhancement transfer: the new item keeps 80% of the old item's level.
@@ -351,7 +355,7 @@ export class GameService {
     const now = this.now();
     const energy = { ...p };
     this.regenEnergy(energy, now);
-    const hero = buildHero(p.classId, p.level, this.equipment(p.id));
+    const hero = buildHero(p.classId, p.level, this.equipment(p));
     const afkUnlocked = p.level >= UNLOCK_LEVEL.afk;
     const pending = afkUnlocked ? this.afkPending(p, now) : null;
     const forgeToday = p.forgeDay === dayKey(now) ? p.forgeBought : 0;
@@ -382,6 +386,7 @@ export class GameService {
         ? { unlocked: true, hours: pending.hours, maxHours: AFK.maxHours, gold: pending.gold, exp: pending.exp, stones: pending.stones, items: pending.itemRolls }
         : { unlocked: false, hours: 0, maxHours: AFK.maxHours, gold: 0, exp: 0, stones: 0, items: 0 },
       forge: { boughtToday: forgeToday, nextPrice: forgeStonePrice(forgeToday) },
+      bags: this.bagCounts(p.id),
       serverTime: now,
     };
   }
@@ -427,14 +432,25 @@ export class GameService {
     return floor <= ENERGY.newbieFreeFloors && now - p.createdAt < ENERGY.newbieFreeHours * HOUR_MS;
   }
 
-  private equipment(playerId: number): Equipment {
-    return this.items(playerId).equipped;
+  private equipment(p: Player): Equipment {
+    return this.items(p.id, p.classId).equipped;
+  }
+
+  /** Unequipped item count per class, so the UI can point at gear waiting for another hunter. */
+  private bagCounts(playerId: number): Record<ClassId, number> {
+    const rows = this.db.prepare("SELECT class, COUNT(*) AS n FROM items WHERE player_id = ? AND equipped_slot IS NULL GROUP BY class").all(playerId) as {
+      class: ClassId;
+      n: number;
+    }[];
+    const out = { butcher: 0, gunslinger: 0, hexer: 0 } as Record<ClassId, number>;
+    for (const r of rows) out[r.class] = r.n;
+    return out;
   }
 
   private item(playerId: number, itemId: string): Item {
-    const row = this.db.prepare("SELECT data FROM items WHERE id = ? AND player_id = ?").get(itemId, playerId) as { data: string } | undefined;
+    const row = this.db.prepare("SELECT data, class FROM items WHERE id = ? AND player_id = ?").get(itemId, playerId) as { data: string; class: string } | undefined;
     if (!row) throw new GameError("not_found", "item not found");
-    return JSON.parse(row.data) as Item;
+    return parseItem(row.data, row.class);
   }
 
   private pity(playerId: number, code: string): number {
@@ -468,16 +484,17 @@ export class GameService {
   }
 
   private giveItems(p: Player, items: Item[], summary: RewardSummary, now: number): void {
-    let count = (this.db.prepare("SELECT COUNT(*) AS n FROM items WHERE player_id = ? AND equipped_slot IS NULL").get(p.id) as { n: number }).n;
+    // Each class has its own bag; a drop goes to the bag of the class it belongs to.
+    const counts = this.bagCounts(p.id);
     for (const item of items) {
-      if (count >= BAG_LIMIT) {
+      if (counts[item.classId] >= BAG_LIMIT) {
         this.salvageItem(p, item, now);
         summary.autoSalvaged += 1;
         continue;
       }
-      this.db.prepare("INSERT INTO items (id, player_id, data, created_at) VALUES (?, ?, ?, ?)").run(item.id, p.id, JSON.stringify(item), now);
+      this.db.prepare("INSERT INTO items (id, player_id, data, class, created_at) VALUES (?, ?, ?, ?, ?)").run(item.id, p.id, JSON.stringify(item), item.classId, now);
       summary.items.push(item);
-      count += 1;
+      counts[item.classId] += 1;
     }
   }
 
@@ -516,6 +533,13 @@ export class GameService {
       p.forgeBought = 0;
     }
   }
+}
+
+/** Items saved before per-class bags have no classId in their JSON; the row's class column is authoritative. */
+function parseItem(data: string, cls: string): Item {
+  const item = JSON.parse(data) as Item;
+  item.classId = cls as ClassId;
+  return item;
 }
 
 function emptySummary(level: number): RewardSummary {

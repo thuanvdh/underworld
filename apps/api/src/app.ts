@@ -87,7 +87,7 @@ export function buildApp({ config, db = openDb(config.dbPath), now = Date.now }:
 
     r.post("/api/afk/claim", async (req) => game.claimAfk(req.playerId));
 
-    r.get("/api/items", async (req) => game.items(req.playerId));
+    r.get("/api/items", async (req) => game.items(req.playerId, (req.query as { class?: string }).class));
     r.post("/api/items/:id/equip", async (req) => game.equip(req.playerId, (req.params as { id: string }).id));
     r.post("/api/items/:id/enhance", async (req) => game.enhance(req.playerId, (req.params as { id: string }).id));
     r.post("/api/items/salvage", async (req) => {

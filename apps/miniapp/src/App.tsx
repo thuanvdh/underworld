@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UNLOCK_LEVEL } from "@underworld/shared";
 import { ICONS, navSprite, type NavIcon } from "./art/sprites/icons.ts";
 import { SpriteImg } from "./art/Sprite.tsx";
@@ -9,6 +9,7 @@ import { Hero } from "./screens/Hero.tsx";
 import { CharacterSelect } from "./screens/CharacterSelect.tsx";
 import { Home } from "./screens/Home.tsx";
 import { useGame } from "./state.tsx";
+import { UNLOCKS, UnlockModal, type Unlock } from "./tutorial.tsx";
 
 type Tab = NavIcon;
 
@@ -25,6 +26,18 @@ export function App() {
   const [tab, setTab] = useState<Tab>("abyss");
   const [fighting, setFighting] = useState<{ floor: number; key: number } | null>(null);
   const [changingClass, setChangingClass] = useState(false);
+  const [unlocks, setUnlocks] = useState<Unlock[]>([]);
+  const prevLevel = useRef(player.level);
+
+  // Introduce each feature the moment its level is reached (shown once back from battle).
+  useEffect(() => {
+    const from = prevLevel.current;
+    prevLevel.current = player.level;
+    if (player.level > from) {
+      const fresh = UNLOCKS.filter((u) => u.level > from && u.level <= player.level);
+      if (fresh.length) setUnlocks((q) => [...q, ...fresh]);
+    }
+  }, [player.level]);
 
   // New players pick a hunter before anything else.
   if (!player.classChosen) {
@@ -59,7 +72,7 @@ export function App() {
 
   return (
     <div className="app">
-      <TopBar />
+      <TopBar onPortrait={() => setChangingClass(true)} />
       {tab === "abyss" && <Home onFight={(floor) => setFighting({ floor, key: Date.now() })} onOpenHero={() => setTab("hero")} />}
       {tab === "hero" && <Hero onChangeClass={() => setChangingClass(true)} />}
       {(tab === "pvp" || tab === "guild" || tab === "shop") && (
@@ -69,6 +82,17 @@ export function App() {
             <p>{locked ? t("locked.level", { level: current.unlock }) : t("locked.soon")}</p>
           </div>
         </div>
+      )}
+      {unlocks[0] && (
+        <UnlockModal
+          unlock={unlocks[0]}
+          onClose={() => setUnlocks((q) => q.slice(1))}
+          onGo={() => {
+            const go = unlocks[0]!.go;
+            setUnlocks((q) => q.slice(1));
+            if (go) setTab(go);
+          }}
+        />
       )}
       <nav className="nav">
         {TABS.map((x) => {
