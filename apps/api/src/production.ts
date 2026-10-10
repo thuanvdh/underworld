@@ -6,7 +6,8 @@
  * Optional: DB_PATH (default /data/underworld.db), BOT_MODE=polling to use long polling instead of a webhook.
  */
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, rmSync } from "node:fs";
+import { accessSync, constants, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { configureBot, createBot } from "@underworld/bot";
 import { webhookCallback } from "grammy";
@@ -18,7 +19,8 @@ const BACKUP_EVERY_MS = 6 * 3600_000;
 const BACKUPS_KEPT = 8;
 
 const publicUrl = (process.env.PUBLIC_URL ?? process.env.RENDER_EXTERNAL_URL ?? "").replace(/\/+$/, "");
-const config = loadConfig({ dbPath: process.env.DB_PATH ?? "/data/underworld.db", devAuth: false });
+const config = loadConfig({ dbPath: writableDbPath(process.env.DB_PATH ?? "/data/underworld.db"), devAuth: false });
+const TMP_DB = join(tmpdir(), "underworld", "underworld.db");
 
 const missing = [
   !config.botToken && "BOT_TOKEN",
@@ -30,8 +32,16 @@ if (missing.length) {
   process.exit(1);
 }
 
-mkdirSync(dirname(config.dbPath), { recursive: true });
-const db = openDb(config.dbPath);
+let db: Db;
+try {
+  db = openDb(config.dbPath);
+} catch (err) {
+  // Some volumes allow writes but not SQLite's locking/WAL files; never fail to boot over storage.
+  console.warn(`! Could not open ${config.dbPath} (${err instanceof Error ? err.message : err}) — using ${TMP_DB}.`);
+  mkdirSync(dirname(TMP_DB), { recursive: true });
+  config.dbPath = TMP_DB;
+  db = openDb(TMP_DB);
+}
 const app = buildApp({ config, db });
 
 // ───────── Telegram bot ─────────
@@ -76,6 +86,24 @@ const shutdown = async () => {
 };
 process.once("SIGTERM", shutdown);
 process.once("SIGINT", shutdown);
+
+/**
+ * Use the configured DB path if its folder is writable; otherwise (e.g. a host running the container as an
+ * unexpected user, or no disk attached) fall back to the temp dir so the game still starts.
+ */
+function writableDbPath(preferred: string): string {
+  const dir = dirname(preferred);
+  try {
+    mkdirSync(dir, { recursive: true });
+    accessSync(dir, constants.W_OK);
+    return preferred;
+  } catch {
+    const fallback = join(tmpdir(), "underworld", "underworld.db"); // same as TMP_DB (declared later)
+    mkdirSync(dirname(fallback), { recursive: true });
+    console.warn(`! ${dir} is not writable — using ${fallback}. Data will not survive restarts; attach a disk or a database.`);
+    return fallback;
+  }
+}
 
 /** Snapshot the SQLite DB next to it every few hours (VACUUM INTO is consistent while the app runs). */
 function startBackups(database: Db, dbPath: string): void {

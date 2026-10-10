@@ -26,7 +26,8 @@ COPY --from=build /app/apps/bot ./apps/bot
 COPY --from=build /app/apps/miniapp/package.json ./apps/miniapp/package.json
 COPY --from=build /app/apps/miniapp/dist ./apps/miniapp/dist
 COPY --from=build /app/tools/sim/package.json ./tools/sim/package.json
-RUN mkdir -p /data && chown node:node /data
+# World-writable so the app works whichever UID the host runs it as.
+RUN mkdir -p /data && chown node:node /data && chmod 1777 /data
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s CMD node -e "fetch('http://localhost:'+process.env.PORT+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
