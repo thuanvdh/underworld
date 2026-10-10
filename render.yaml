@@ -3,16 +3,14 @@ services:
   - type: web
     name: underworld
     runtime: docker
-    # "starter" keeps the game awake 24/7 and allows the persistent disk below.
-    # On "free" the service sleeps after 15 min and has no disk: player data resets on every deploy.
-    plan: starter
+    # Free plan: no card needed. The service sleeps after 15 min idle (a Telegram message wakes it in ~1 min)
+    # and has no persistent disk, so player data resets on every deploy/restart.
+    # For real players switch to `plan: starter` and add:
+    #   disk: { name: data, mountPath: /data, sizeGB: 1 }
+    plan: free
     region: frankfurt
     healthCheckPath: /api/health
     autoDeploy: true
-    disk:
-      name: data
-      mountPath: /data
-      sizeGB: 1
     envVars:
       - key: BOT_TOKEN
         sync: false # paste your @BotFather token in the Render dashboard
