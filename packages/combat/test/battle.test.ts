@@ -126,3 +126,49 @@ describe("chapter bosses", () => {
     }
   });
 });
+
+describe("rage skills", () => {
+  /** Step until the rage bar is full, then press `index`; returns the events of the cast. */
+  function castAt(classId: ClassId, level: number, index: number): { battle: Battle; events: BattleEvent[] } {
+    const hero = buildHero(classId, level, gear(5, "rare", level, 0, classId));
+    const battle = new Battle(buildDungeonSetup(10, hero, 77), { recordEvents: true });
+    while (!battle.skillState().ready) battle.step();
+    battle.events.length = 0;
+    battle.step(index);
+    return { battle, events: [...battle.events] };
+  }
+
+  it("unlock one by one with level", () => {
+    assert.equal(castAt("butcher", 1, 0).battle.rageSkillCount, 1);
+    assert.equal(castAt("butcher", 4, 0).battle.rageSkillCount, 2);
+    assert.equal(castAt("butcher", 8, 0).battle.rageSkillCount, 3);
+  });
+
+  it("a locked pick falls back to the signature skill", () => {
+    const { events } = castAt("hexer", 1, 2);
+    assert.equal(events.find((e) => e.kind === "skill")?.index, 0);
+  });
+
+  it("defensive picks shield the hero instead of hitting", () => {
+    for (const classId of ["butcher", "gunslinger", "hexer"] as const) {
+      const { events } = castAt(classId, 8, 2);
+      assert.equal(events.find((e) => e.kind === "skill")?.index, 2, classId);
+      assert.ok(events.some((e) => e.kind === "shield" && e.uid === 1), `${classId} shield`);
+    }
+  });
+
+  it("server replay honours the picked skills", () => {
+    for (const classId of ["butcher", "gunslinger", "hexer"] as const) {
+      const hero = buildHero(classId, 20, gear(9, "epic", 20, 0, classId));
+      const setup = buildDungeonSetup(20, hero, 4242);
+      const live = new Battle(setup, { recordEvents: true });
+      const rng = new Rng(3);
+      while (!live.ended) {
+        if (live.phase === "boonChoice") live.chooseBoon(0);
+        else live.step(live.skillState().ready && rng.chance(3000) ? rng.int(3) : false);
+      }
+      assert.ok(live.result!.inputs.skillPicks!.some((p) => p > 0), `${classId} used a rage skill`);
+      assert.deepEqual(simulate(setup, live.result!.inputs), live.result, classId);
+    }
+  });
+});

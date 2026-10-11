@@ -1238,3 +1238,20 @@ Nguồn dữ liệu: `packages/shared/src/data/meta.ts`. Mở ở **cấp 10**, 
 - **Cửa hàng:** Rương Ngầm (1 lượt miễn phí/ngày, 160 💎/lượt, 1.500 💎/10 lượt, mở 10 lượt chắc chắn có Sử Thi, bảo hiểm Huyền Thoại ở lượt 60 và giữ mãi; đồ thuộc lớp đang chơi) · +60 năng lượng (50/80/120 💎, 3 lần/ngày) · AFK tức thì 2 giờ (lần đầu miễn phí, sau đó 50/80/120/160 💎) · 30 đá (120 💎, 3 lần/ngày) · 10 tinh thể (150 💎, 2 lần/ngày).
 - **Thu nhập kim cương thực tế của người không nạp:** khoảng 60 💎/ngày từ nhiệm vụ ngày, khoảng 14 💎/ngày từ nhiệm vụ tuần, cộng 1.500 💎 một lần từ lịch đăng nhập, tức khoảng 75 💎/ngày. Đấu trường sẽ thêm khoảng 20 💎/ngày khi làm xong.
 - **Chưa làm:** gói nạp bằng Telegram Stars.
+
+### 25.6. Cập nhật: thanh nộ và chọn skill (đã làm)
+
+- **Thanh nộ:** đổi tên thanh năng lượng skill thành thanh nộ (Rage). Cách tích không đổi: +12 mỗi đòn đánh thường, +6 mỗi lần bị đánh. Khi đầy, người chơi chọn 1 trong các skill đã mở. Vòng thời gian Perfect/Good áp dụng cho mọi skill.
+- **3 skill nộ mỗi lớp** (mở ở cấp 1 / 4 / 8):
+
+| Lớp | Cấp 1 (skill gốc) | Cấp 4 (đánh đơn) | Cấp 8 (phòng thủ) |
+|---|---|---|---|
+| Đồ Tể | Whirlwind: 3 vòng chém toàn bộ, hồi máu | Meat Hook: 300–400% lên quái đầu, choáng 2 giây | Feast: hồi 20–26% HP, khiên 25% HP |
+| Xạ Thủ | Deadeye: chí mạng chắc chắn lên quái trâu nhất | Fan the Hammer: 6 phát 90–120% vào quái ngẫu nhiên | Smoke Bomb: 120–150% toàn bộ, làm chậm 3 giây, khiên 20% HP |
+| Phù Thủy | Plague Rain: đánh toàn bộ, độc, làm chậm | Soul Drain: 260–360% lên quái yếu nhất, hồi 50% sát thương | Hex Ward: khiên 30–40% HP, choáng toàn bộ 1,5 giây |
+
+- **Boss:** choáng lên boss vẫn bị giới hạn 0,5 giây và có thời gian miễn choáng như cũ.
+- **Auto:** dùng skill phòng thủ khi HP dưới 40% (nếu đã mở), còn lại dùng skill gốc. Đối thủ PvP (AI) luôn dùng skill gốc.
+- **Chống gian lận:** client gửi thêm `skillPicks` (skill chọn ở mỗi lần bấm). Server replay với đúng lựa chọn đó. Thiếu `skillPicks` thì coi là skill gốc, nên client cũ vẫn chạy được.
+- **Hiệu ứng:** mỗi đòn trúng vẽ một vệt chém hình lưỡi liềm trên quái, theo màu phẩm chất vũ khí. Xạ Thủ vẽ vệt đạn thẳng, Phù Thủy vẽ vệt phép. Chí mạng vẽ hai vệt chéo hình chữ X. Mỗi skill nộ có hiệu ứng và banner tên riêng.
+- **Mô phỏng lại (300 người × 30 ngày):** vẫn qua tầng 60 quanh ngày 30, tỉ lệ tiêu vàng 97%. Không cần cân bằng lại.

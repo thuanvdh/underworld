@@ -4,12 +4,12 @@ import { Battle, type BattleResult, type SkillQuality } from "@underworld/combat
 import { api, type RewardSummary } from "../api.ts";
 import { BattleRenderer } from "../battle/renderer.ts";
 import { LootRow } from "../components/RewardSheet.tsx";
-import { BOON_TEXT, SKILL_NAMES, itemName, t } from "../i18n.ts";
+import { BOON_TEXT, RAGE_SKILL_TEXT, itemName, t } from "../i18n.ts";
 import { Coach } from "../tutorial.tsx";
-import { ICONS, itemSprite } from "../art/sprites/icons.ts";
+import { ICONS, RAGE_SKILL_ICONS } from "../art/sprites/icons.ts";
 import { SpriteImg } from "../art/Sprite.tsx";
 import { usePixelCanvas } from "../art/usePixelCanvas.ts";
-import { ILVL_OVER_LEVEL, UNLOCK_LEVEL, buildHero, chapterOf, power, type Item } from "@underworld/shared";
+import { ILVL_OVER_LEVEL, RAGE_SKILL_LEVELS, UNLOCK_LEVEL, buildHero, chapterOf, power, type Item } from "@underworld/shared";
 import { useGame } from "../state.tsx";
 import { haptic } from "../telegram.ts";
 
@@ -51,7 +51,8 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
   usePixelCanvas(stageRef, canvasRef, { targetPixelWidth: 210, fillHeight: true });
   const battleRef = useRef<Battle | null>(null);
   const battleIdRef = useRef("");
-  const pressRef = useRef(false);
+  /** Rage skill tapped since the last tick, if any. */
+  const pressRef = useRef<number | null>(null);
   // Tutorial (GDD §14.2): the very first fight teaches the skill button; the floor 3 boss teaches Perfect.
   const firstFight = useRef(floor === 1 && player.highestFloor === 0).current;
   const shieldLesson = useRef(floor === 3 && player.highestFloor < 3).current;
@@ -122,12 +123,12 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
           coachRef.current = "show";
           setCoaching(true);
         }
-        const press = pressRef.current || (autoRef.current && skill.ready);
-        if (press && coachRef.current === "show") {
+        const press = pressRef.current ?? (autoRef.current && skill.ready ? battle.autoSkillPick() : false);
+        if (press !== false && coachRef.current === "show") {
           coachRef.current = "done";
           setCoaching(false);
         }
-        pressRef.current = false;
+        pressRef.current = null;
         const before = battle.events.length;
         battle.step(press);
         for (const e of battle.events.slice(before)) {
@@ -137,9 +138,12 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
             lessonUntil = now + 2200;
             renderer.showBanner("SHIELD! Land a PERFECT skill to shatter it", now);
           }
-          if (e.kind === "skill" && e.src === renderer.heroUid && e.quality !== "normal") {
-            setQuality({ q: e.quality, at: now });
-            haptic("heavy");
+          if (e.kind === "skill" && e.src === renderer.heroUid) {
+            if (e.index > 0) renderer.showBanner(RAGE_SKILL_TEXT[player.classId][e.index]!.name.toUpperCase(), now);
+            if (e.quality !== "normal") {
+              setQuality({ q: e.quality, at: now });
+              haptic("heavy");
+            }
           } else if (e.kind === "damage" && e.crit && e.dst !== renderer.heroUid) {
             haptic("light");
           } else if (e.kind === "mechanic") {
@@ -213,12 +217,12 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
   };
 
   // Ring shrinks onto the button edge exactly at the Perfect tick, then loops.
-  const ringSize = 86 + Math.max(-8, ((PERFECT_PHASE - skill.ringPhase) / PERFECT_PHASE) * 50);
+  const ringSize = 64 + Math.max(-6, ((PERFECT_PHASE - skill.ringPhase) / PERFECT_PHASE) * 22);
   const showQuality = quality && performance.now() - quality.at < 700;
   const won = outcome?.result.victory;
   const nextFloor = won && floor < MAX_FLOOR ? floor + 1 : undefined;
 
-  const skillIcon = player.classId === "butcher" ? itemSprite("weapon") : player.classId === "gunslinger" ? ICONS.gun : ICONS.potion;
+  const rageCount = battle?.rageSkillCount ?? 1;
 
   return (
     <div className="battle">
@@ -257,27 +261,40 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
             </span>
           ))}
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <div className="skill-wrap">
-            {skill.ready && (!auto || firstFight) && <div className="ring" style={{ width: ringSize, height: ringSize }} />}
-            {showQuality && (
-              <div className="quality" style={{ color: quality!.q === "perfect" ? "var(--teal)" : "var(--heal)" }}>
-                {t(quality!.q === "perfect" ? "quality.perfect" : "quality.good")}
-              </div>
-            )}
-            <button
-              className={`skill-btn ${skill.ready ? "ready" : ""}`}
-              onPointerDown={() => {
-                if (skill.ready) pressRef.current = true;
-              }}
-            >
-              <div className="fill" style={{ height: `${skill.energy}%` }} />
-              <SpriteImg sprite={skillIcon} scale={3} />
-            </button>
+        <div className="rage">
+          <div className={`rage-bar ${skill.ready ? "full" : ""}`}>
+            <div className="fill" style={{ width: `${skill.energy}%` }} />
+            <span>{skill.ready ? (rageCount > 1 ? "RAGE FULL · PICK A SKILL" : "RAGE FULL") : `RAGE ${skill.energy}%`}</span>
           </div>
-          <span className="label small">{SKILL_NAMES[player.classId]}</span>
+          <div className="rage-skills">
+            {RAGE_SKILL_TEXT[player.classId].map((info, i) => {
+              const locked = i >= rageCount;
+              const ready = skill.ready && !locked;
+              return (
+                <div key={info.name} className="skill-wrap">
+                  {ready && (!auto || firstFight) && <div className="ring" style={{ width: ringSize, height: ringSize }} />}
+                  <button
+                    className={`skill-btn ${ready ? "ready" : ""} ${locked ? "locked" : ""}`}
+                    disabled={locked}
+                    title={locked ? `Unlocks at Lv ${RAGE_SKILL_LEVELS[i]}` : info.desc}
+                    onPointerDown={() => {
+                      if (ready) pressRef.current = i;
+                    }}
+                  >
+                    {!locked && <div className="fill" style={{ height: `${skill.energy}%` }} />}
+                    <SpriteImg sprite={locked ? ICONS.lock : RAGE_SKILL_ICONS[player.classId][i]!} scale={locked ? 2 : 3} />
+                  </button>
+                  <span className="label small skill-name">{locked ? `Lv ${RAGE_SKILL_LEVELS[i]}` : info.name}</span>
+                </div>
+              );
+            })}
+          </div>
+          {showQuality && (
+            <div className="quality" style={{ color: quality!.q === "perfect" ? "var(--teal)" : "var(--heal)" }}>
+              {t(quality!.q === "perfect" ? "quality.perfect" : "quality.good")}
+            </div>
+          )}
         </div>
-        <div />
       </div>
 
       {coaching && <Coach target=".skill-btn" text="Your skill is ready! Tap when the ring touches the button edge for a PERFECT hit." />}

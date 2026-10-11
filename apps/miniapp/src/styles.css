@@ -693,7 +693,8 @@ button:disabled {
 }
 .battle-controls {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 56px 1fr;
+  gap: 8px;
   align-items: center;
   padding: 8px 14px calc(12px + var(--safe-bottom));
   background: var(--slate);
@@ -713,16 +714,80 @@ button:disabled {
   border: 2px solid var(--rivet);
   background: var(--abyss);
 }
+.rage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.rage-bar {
+  position: relative;
+  width: 100%;
+  max-width: 260px;
+  height: 16px;
+  background: var(--abyss);
+  border: 2px solid var(--rivet);
+  overflow: hidden;
+}
+.rage-bar .fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, #7a1a10, #ff3b4e 70%, #ffc93c);
+  transition: width 0.1s linear;
+}
+.rage-bar span {
+  position: relative;
+  display: block;
+  text-align: center;
+  font-family: var(--pixel);
+  font-size: 10px;
+  line-height: 12px;
+  letter-spacing: 1px;
+  text-shadow: 0 1px 0 #000;
+}
+.rage-bar.full {
+  border-color: var(--gold);
+  animation: rage-pulse 0.6s ease-in-out infinite alternate;
+}
+@keyframes rage-pulse {
+  from {
+    box-shadow: 0 0 4px rgba(255, 59, 78, 0.5);
+  }
+  to {
+    box-shadow: 0 0 14px rgba(255, 201, 60, 0.9);
+  }
+}
+.rage-skills {
+  display: flex;
+  gap: 6px;
+}
 .skill-wrap {
   position: relative;
-  width: 104px;
-  height: 104px;
-  display: grid;
-  place-items: center;
+  width: 78px;
+  height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 6px;
+}
+.skill-wrap .ring {
+  top: 34px;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.skill-name {
+  margin-top: 3px;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.skill-btn.locked {
+  opacity: 0.45;
 }
 .skill-btn {
-  width: 80px;
-  height: 80px;
+  width: 58px;
+  height: 58px;
   background: var(--abyss);
   border: 3px solid var(--rivet);
   display: grid;

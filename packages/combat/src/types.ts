@@ -46,10 +46,12 @@ export interface BattleSetup {
   threeStarTicks: number;
 }
 
-/** Everything a client sends to prove a battle: which ticks it pressed the skill and which boons it picked. */
+/** Everything a client sends to prove a battle: which ticks it pressed a skill, which skill, and which boons it picked. */
 export interface BattleInputs {
   skillTicks: number[];
   boonPicks: number[];
+  /** Rage skill index for each entry of skillTicks (missing → 0, the signature skill). */
+  skillPicks?: number[];
 }
 
 export type SkillQuality = "normal" | "good" | "perfect";
@@ -64,7 +66,7 @@ export type BattleEvent =
   | { t: number; kind: "damage"; src: number; dst: number; amount: number; crit: boolean; skill: boolean }
   | { t: number; kind: "dodge"; src: number; dst: number }
   | { t: number; kind: "heal"; dst: number; amount: number }
-  | { t: number; kind: "skill"; src: number; quality: SkillQuality }
+  | { t: number; kind: "skill"; src: number; quality: SkillQuality; index: number }
   | { t: number; kind: "death"; uid: number }
   | { t: number; kind: "shield"; uid: number; amount: number }
   | { t: number; kind: "mechanic"; uid: number; what: string }

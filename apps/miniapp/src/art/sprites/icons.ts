@@ -394,3 +394,37 @@ export const FINGER: Sprite = outlined(
   },
   OUT,
 );
+
+// ───────────────────────── rage skill icons ─────────────────────────
+
+const STEEL = { h: "#4a4a56", g: "#9a9aa8", G: "#e0e0ea" };
+const hook: Sprite = {
+  rows: ["...hhh......", "..hGGGh.....", "..hG.Gh.....", "...hGh......", "....g.......", "....g.......", "....g...g...", "....g....g..", "....gg...g..", ".....gg.gg..", "......ggg..."],
+  palette: STEEL,
+};
+const shield: Sprite = {
+  rows: ["..hhhhhhhh..", ".hGGGGGGggh.", ".hGGjjjGggh.", ".hGjjJjjggh.", ".hGGjjjGggh.", ".hGGGGGGggh.", "..hGGGGggh..", "..hGGGGggh..", "...hGGggh...", "....hGgh....", ".....hh....."],
+  palette: { ...STEEL, j: "#4fe3e0", J: "#ffffff" },
+};
+const skull: Sprite = {
+  rows: ["...ssssss...", "..ssssssss..", ".ssssssssss.", ".skkssskkss.", ".skkssskkss.", ".sssssksssS.", "..ssssssSS..", "...s.s.s.s..", "...s.s.s.s.."],
+  palette: { s: "#c8f0a0", S: "#6cc31f", k: "#1a3a10" },
+};
+const bullets: Sprite = {
+  rows: ["..G...G...G.", ".GGG.GGG.GGG", ".yyy.yyy.yyy", ".yyy.yyy.yyy", ".yyy.yyy.yyy", ".yyy.yyy.yyy", ".YYY.YYY.YYY"],
+  palette: { G: "#f0d27a", y: "#c9a548", Y: "#8a6a2a" },
+};
+const smoke: Sprite = {
+  rows: ["....ccc.....", "..ccCCCcc...", ".cCCCCCCCc..", "cCCCCCCCCCcc", "cCCCCCCCCCCc", ".cccCCCCccc.", "...cc..cc..."],
+  palette: { c: "#6a6a7a", C: "#b0b0c0" },
+};
+
+/** One icon per rage skill, in RAGE_SKILLS order. */
+export const RAGE_SKILL_ICONS: Record<ClassId, Sprite[]> = {
+  butcher: [WEAPONS.butcher, outlined(hook, OUT), ICONS.potion],
+  gunslinger: [ICONS.gun, outlined(bullets, OUT), outlined(smoke, OUT)],
+  hexer: [ICONS.potion, outlined(skull, OUT), outlined(recolor(shield, { j: "#c78cff", G: "#d8c8f0", g: "#8a6ab0" }), OUT)],
+};
+
+/** Rage skill icon grids, for the sprite sanity test. */
+export const RAGE_ICON_SPRITES: Sprite[] = [hook, shield, skull, bullets, smoke];

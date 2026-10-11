@@ -153,11 +153,14 @@ function str(body: unknown, key: string): string {
 
 /** Inputs come from the client, so only their shape is checked here; the replay decides what they're worth. */
 function parseInputs(raw: unknown): BattleInputs {
-  const r = raw as { skillTicks?: unknown; boonPicks?: unknown } | undefined;
+  const r = raw as { skillTicks?: unknown; boonPicks?: unknown; skillPicks?: unknown } | undefined;
   const ticks = r?.skillTicks;
   const picks = r?.boonPicks;
+  const skillPicks = r?.skillPicks ?? [];
   const isInts = (a: unknown, max: number): a is number[] =>
     Array.isArray(a) && a.length <= max && a.every((x) => typeof x === "number" && Number.isInteger(x) && x >= 0);
-  if (!isInts(ticks, MAX_SKILL_PRESSES) || !isInts(picks, MAX_BOON_PICKS)) throw new GameError("bad_request", "invalid inputs");
-  return { skillTicks: ticks, boonPicks: picks };
+  if (!isInts(ticks, MAX_SKILL_PRESSES) || !isInts(picks, MAX_BOON_PICKS) || !isInts(skillPicks, MAX_SKILL_PRESSES)) {
+    throw new GameError("bad_request", "invalid inputs");
+  }
+  return { skillTicks: ticks, boonPicks: picks, skillPicks };
 }

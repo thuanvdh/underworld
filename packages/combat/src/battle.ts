@@ -4,7 +4,9 @@ import {
   BOON_RARITY_WEIGHTS,
   PASSIVE_LEVELS,
   Rng,
+  RAGE_SKILLS,
   SKILLS,
+  rageSkillCount,
   skillTier,
   type BoonId,
   type BossMechanic,
@@ -123,7 +125,7 @@ export class Battle {
   private waveStartTick = 0;
   private damageDealt = 0;
   private damageTaken = 0;
-  private readonly inputs: BattleInputs = { skillTicks: [], boonPicks: [] };
+  private readonly inputs: Required<BattleInputs> = { skillTicks: [], boonPicks: [], skillPicks: [] };
 
   constructor(setup: BattleSetup, options: BattleOptions = {}) {
     this.setup = setup;
@@ -155,8 +157,18 @@ export class Battle {
     return { ready, ringPhase: ready ? (this.tick + 1 - h.readyTick) % RING_TICKS : 0, energy: h.energy };
   }
 
-  /** Advance one tick. `pressSkill` is the player's tap on this tick. */
-  step(pressSkill = false): void {
+  /** Rage skills the controlled hero can pick from right now (by index). */
+  get rageSkillCount(): number {
+    return rageSkillCount(this.heroUnit.hero!.build.level);
+  }
+
+  /** The rage skill auto battle would pick for the controlled hero right now. */
+  autoSkillPick(): number {
+    return this.autoSkill(this.heroUnit, this.rageSkillCount);
+  }
+
+  /** Advance one tick. `press` is the player's tap on this tick: true or a rage skill index. */
+  step(press: boolean | number = false): void {
     if (this.phase !== "fighting") throw new Error(`cannot step in phase ${this.phase}`);
     this.tick += 1;
     const t = this.tick;
@@ -166,9 +178,13 @@ export class Battle {
     if (this.phase !== "fighting") return;
 
     for (const u of this.livingUnits()) {
-      if (u.hero && u.hero.readyTick >= 0 && this.wantsSkill(u, pressSkill)) {
-        if (u === this.heroUnit) this.inputs.skillTicks.push(t);
-        this.castSkill(u);
+      const choice = u.hero && u.hero.readyTick >= 0 ? this.skillChoice(u, press) : null;
+      if (choice !== null) {
+        if (u === this.heroUnit) {
+          this.inputs.skillTicks.push(t);
+          this.inputs.skillPicks.push(choice);
+        }
+        this.castSkill(u, choice);
         if (this.phase !== "fighting") return;
       }
     }
@@ -348,15 +364,22 @@ export class Battle {
 
   // ───────────────────────── actions ─────────────────────────
 
-  private wantsSkill(u: Unit, pressSkill: boolean): boolean {
+  /** Which rage skill this unit casts on this tick, or null to keep waiting. */
+  private skillChoice(u: Unit, press: boolean | number): number | null {
     const h = u.hero!;
-    if (!h.controlled) return true; // PvP AI casts as soon as it can
-    if (pressSkill) return true;
-    if (!this.autopilot) return false;
+    if (!h.controlled) return 0; // PvP AI casts its signature skill as soon as it can
+    const count = rageSkillCount(h.build.level);
+    if (typeof press === "number") return press >= 0 && press < count ? press : 0;
+    if (press) return 0;
+    if (!this.autopilot) return null;
     const phase = (this.tick - h.readyTick) % RING_TICKS;
-    if (this.autopilot === "auto") return true;
-    if (this.autopilot === "good") return phase === 16;
-    return phase === 21;
+    const fire = this.autopilot === "auto" || (this.autopilot === "good" ? phase === 16 : phase === 21);
+    return fire ? this.autoSkill(u, count) : null;
+  }
+
+  /** Auto battle: the defensive skill when hurt, otherwise the signature skill. */
+  private autoSkill(u: Unit, count: number): number {
+    return count >= 3 && u.hp * 10 < u.maxHp * 4 ? 2 : 0;
   }
 
   private qualityNow(h: HeroState): SkillQuality {
@@ -384,29 +407,33 @@ export class Battle {
     }
   }
 
-  private castSkill(u: Unit): void {
+  private castSkill(u: Unit, index: number): void {
     const h = u.hero!;
     const quality = h.controlled ? this.qualityNow(h) : "normal";
     h.energy = 0;
     h.readyTick = -1;
     h.skillsCast += 1;
-    this.emit({ t: this.tick, kind: "skill", src: u.uid, quality });
+    this.emit({ t: this.tick, kind: "skill", src: u.uid, quality, index });
 
     let powerBp = 10000;
     if (h.skillsCast === 1 && this.hasSet(u, "drifter", 6)) powerBp += 5000;
     if (this.hasSet(u, "underlord", 6)) powerBp += 4000;
 
-    this.skillEffect(u, quality, powerBp);
+    this.skillEffect(u, quality, powerBp, index);
     if (this.boons(u).includes("echo") && u.alive && this.phase === "fighting") {
-      this.skillEffect(u, quality, Math.floor(powerBp / 2));
+      this.skillEffect(u, quality, Math.floor(powerBp / 2), index);
     }
     if (this.hasSet(u, "underlord", 6) && u.alive) this.heal(u, Math.floor(u.maxHp / 10));
   }
 
-  private skillEffect(u: Unit, quality: SkillQuality, powerBp: number): void {
+  private skillEffect(u: Unit, quality: SkillQuality, powerBp: number, index: number): void {
     const h = u.hero!;
     const tier = skillTier(h.build.level);
     const enemies = () => this.livingUnits().filter((e) => e.side !== u.side);
+    if (index > 0) {
+      this.rageSkillEffect(u, quality, powerBp, index, tier);
+      return;
+    }
 
     switch (h.build.classId) {
       case "butcher": {
@@ -442,6 +469,57 @@ export class Battle {
           if (h.build.level >= PASSIVE_LEVELS.third) this.stun(e, 30);
         }
         break;
+      }
+    }
+  }
+
+  /** Rage skills 1 and 2 of each class (RAGE_SKILLS). Shields and heals scale with skill power too. */
+  private rageSkillEffect(u: Unit, quality: SkillQuality, powerBp: number, index: number, tier: 0 | 1 | 2 | 3): void {
+    const enemies = () => this.livingUnits().filter((e) => e.side !== u.side);
+    const scaled = (bp: number) => Math.floor((bp * powerBp) / 10000);
+    const share = (bp: number) => Math.floor((u.maxHp * scaled(bp)) / 10000);
+    const shield = (amount: number) => {
+      u.shield = Math.max(u.shield, amount);
+      this.emit({ t: this.tick, kind: "shield", uid: u.uid, amount: u.shield });
+    };
+    const classId = u.hero!.build.classId;
+    if (classId === "butcher") {
+      const cfg = RAGE_SKILLS.butcher;
+      if (index === 1) {
+        const target = this.frontTarget(u);
+        if (!target) return;
+        this.hit(u, target, scaled(cfg.hook.multBp[tier]), { skill: true, quality });
+        if (target.alive) this.stun(target, cfg.hook.stunTicks);
+      } else {
+        this.heal(u, share(cfg.feast.healBp[tier]));
+        shield(share(cfg.feast.shieldBp));
+      }
+    } else if (classId === "gunslinger") {
+      const cfg = RAGE_SKILLS.gunslinger;
+      if (index === 1) {
+        for (let i = 0; i < cfg.fan.shots; i++) {
+          const targets = enemies();
+          if (targets.length === 0 || this.phase !== "fighting") break;
+          this.hit(u, this.rng.pick(targets), scaled(cfg.fan.multBp[tier]), { skill: true, quality });
+        }
+      } else {
+        for (const e of enemies()) {
+          this.hit(u, e, scaled(cfg.smoke.multBp[tier]), { skill: true, quality });
+          if (this.phase !== "fighting") return;
+          if (e.alive) e.slowUntil = Math.max(e.slowUntil, this.tick + cfg.smoke.slowTicks);
+        }
+        if (u.alive) shield(share(cfg.smoke.shieldBp));
+      }
+    } else {
+      const cfg = RAGE_SKILLS.hexer;
+      if (index === 1) {
+        const target = enemies().reduce<Unit | null>((best, e) => (!best || e.hp < best.hp ? e : best), null);
+        if (!target) return;
+        const dealt = this.hit(u, target, scaled(cfg.drain.multBp[tier]), { skill: true, quality });
+        if (u.alive) this.heal(u, Math.floor((dealt * cfg.drain.healShareBp) / 10000));
+      } else {
+        shield(share(cfg.ward.shieldBp[tier]));
+        for (const e of enemies()) this.stun(e, cfg.ward.stunTicks);
       }
     }
   }
@@ -793,7 +871,7 @@ export class Battle {
       boons: [...(hero.hero?.boons ?? [])],
       damageDealt: this.damageDealt,
       damageTaken: this.damageTaken,
-      inputs: { skillTicks: [...this.inputs.skillTicks], boonPicks: [...this.inputs.boonPicks] },
+      inputs: { skillTicks: [...this.inputs.skillTicks], boonPicks: [...this.inputs.boonPicks], skillPicks: [...this.inputs.skillPicks] },
     };
     this.emit({ t: this.tick, kind: "end", victory });
   }
@@ -823,7 +901,8 @@ function mechanicInterval(m: BossMechanic): number {
  */
 export function simulate(setup: BattleSetup, inputs?: Partial<BattleInputs>, options: BattleOptions = {}): BattleResult {
   const battle = new Battle(setup, { ...options, autopilot: inputs?.skillTicks ? undefined : (options.autopilot ?? "auto") });
-  const presses = new Set(inputs?.skillTicks ?? []);
+  // Each pressed tick maps to the rage skill picked on it.
+  const presses = new Map((inputs?.skillTicks ?? []).map((t, i) => [t, inputs?.skillPicks?.[i] ?? 0]));
   const picks = inputs?.boonPicks ?? [];
   let pickIndex = 0;
   while (!battle.ended) {
@@ -831,7 +910,8 @@ export function simulate(setup: BattleSetup, inputs?: Partial<BattleInputs>, opt
       const pick = picks[pickIndex++];
       battle.chooseBoon(pick ?? battle.autoBoonPick());
     } else {
-      battle.step(presses.has(battle.tick + 1));
+      const press = presses.get(battle.tick + 1);
+      battle.step(press === undefined ? false : press);
     }
   }
   return battle.result!;

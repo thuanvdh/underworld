@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UNLOCK_LEVEL } from "@underworld/shared";
+import { RAGE_SKILL_LEVELS, UNLOCK_LEVEL } from "@underworld/shared";
 import { FINGER, ICONS, itemSprite, navSprite } from "./art/sprites/icons.ts";
 import type { Sprite } from "./art/pixel.ts";
 import { SpriteImg } from "./art/Sprite.tsx";
@@ -44,7 +44,7 @@ export function Coach({ target, text, place = "above" }: { target: string; text:
 
 export interface Unlock {
   level: number;
-  id: "enhance" | "boons" | "afk" | "auto" | "speed" | "quests" | "shop";
+  id: "enhance" | "boons" | "afk" | "auto" | "speed" | "quests" | "shop" | "rage2" | "rage3";
   title: string;
   npc: string;
   line: string;
@@ -65,6 +65,15 @@ export const UNLOCKS: Unlock[] = [
     text: "Enhance items up to +15. +1 to +9 always succeed; failures later fill your Luck meter.",
     icon: ICONS.hammer,
     go: "hero",
+  },
+  {
+    level: RAGE_SKILL_LEVELS[1],
+    id: "rage2",
+    title: "New rage skill",
+    npc: "THREE-SCARS",
+    line: "Rage isn't just for one trick. When the bar burns full, choose how you let it out.",
+    text: "When your Rage bar is full, pick one of your skills. Your second skill is a heavy strike on a single enemy.",
+    icon: ICONS.sword,
   },
   {
     level: UNLOCK_LEVEL.autoBattle,
@@ -93,6 +102,15 @@ export const UNLOCKS: Unlock[] = [
     text: "Gold, EXP, stones and gear pile up for 12 hours. Tap the chest or Claim to collect.",
     icon: ICONS.chest,
     go: "abyss",
+  },
+  {
+    level: RAGE_SKILL_LEVELS[2],
+    id: "rage3",
+    title: "Third rage skill",
+    npc: "THREE-SCARS",
+    line: "Bleeding out? Spend your rage on staying alive. The dead don't loot.",
+    text: "Your third skill protects you: a big shield (plus a heal or crowd control). Auto battle uses it when you're below 40% HP.",
+    icon: ICONS.potion,
   },
   {
     level: UNLOCK_LEVEL.dailyQuests,

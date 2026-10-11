@@ -93,7 +93,30 @@ export function errorText(code: string): string {
 
 export const CLASS_NAMES: Record<ClassId, string> = { butcher: "Butcher", gunslinger: "Gunslinger", hexer: "Hexer" };
 export const CLASS_ICONS: Record<ClassId, string> = { butcher: "🪓", gunslinger: "🔫", hexer: "🧪" };
-export const SKILL_NAMES: Record<ClassId, string> = { butcher: "Whirlwind", gunslinger: "Deadeye", hexer: "Plague Rain" };
+/** Rage skills in RAGE_SKILLS order: the signature skill first. */
+export const RAGE_SKILL_TEXT: Record<ClassId, { name: string; desc: string }[]> = {
+  butcher: [
+    { name: "Whirlwind", desc: "3 spins hit every enemy and heal you" },
+    { name: "Meat Hook", desc: "Huge hit on the front enemy + stun" },
+    { name: "Feast", desc: "Heal 20% HP and gain a big shield" },
+  ],
+  gunslinger: [
+    { name: "Deadeye", desc: "A sure crit on the toughest enemy" },
+    { name: "Fan the Hammer", desc: "6 fast shots at random enemies" },
+    { name: "Smoke Bomb", desc: "Hit and slow every enemy, small shield" },
+  ],
+  hexer: [
+    { name: "Plague Rain", desc: "Hit every enemy, poison and slow" },
+    { name: "Soul Drain", desc: "Huge hit on the weakest, heal half" },
+    { name: "Hex Ward", desc: "Big shield and stun every enemy" },
+  ],
+};
+
+export const SKILL_NAMES: Record<ClassId, string> = {
+  butcher: RAGE_SKILL_TEXT.butcher[0]!.name,
+  gunslinger: RAGE_SKILL_TEXT.gunslinger[0]!.name,
+  hexer: RAGE_SKILL_TEXT.hexer[0]!.name,
+};
 
 export const SLOT_NAMES: Record<Slot, string> = { weapon: "Weapon", helmet: "Helmet", armor: "Armor", gloves: "Gloves", boots: "Boots", amulet: "Amulet" };
 export const SLOT_ICONS: Record<Slot, string> = { weapon: "🗡️", helmet: "🪖", armor: "🥋", gloves: "🧤", boots: "👢", amulet: "📿" };

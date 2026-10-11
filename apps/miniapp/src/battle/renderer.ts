@@ -72,6 +72,20 @@ function pixelsOf(s: Sprite) {
   return p;
 }
 
+interface Slash {
+  kind: "arc" | "streak";
+  x: number;
+  y: number;
+  r: number;
+  /** Start angle and signed sweep, radians. */
+  a0: number;
+  sweep: number;
+  width: number;
+  color: string;
+  born: number;
+  life: number;
+}
+
 /** Most common non-outline color of a sprite — used for splats. */
 const goreCache = new WeakMap<Sprite, string>();
 function goreColor(s: Sprite): string {
@@ -113,6 +127,7 @@ export class BattleRenderer {
   private introStart = 0;
   private introduced = new Set<number>();
   private skillGlow: { color: string; until: number; uid: number } | null = null;
+  private slashes: Slash[] = [];
   private lastAmbient = 0;
   private ended: { victory: boolean; at: number } | null = null;
   private vignette: HTMLCanvasElement | null = null;
@@ -156,6 +171,7 @@ export class BattleRenderer {
           const cx = dst.x + dst.w / 2;
           const cy = dst.y + dst.h * 0.45;
           this.fx.hitSparks(cx, cy, a.knock, e.crit);
+          if (e.src === this.heroUid && !toHero) this.slash(cx, cy, dst, a.knock, e.crit, e.skill, now);
           const tier = this.heroLook.weaponTier;
           if (e.src === this.heroUid && (tier === "rare" || tier === "epic" || tier === "legendary")) {
             const color = tierColor(tier);
@@ -190,7 +206,7 @@ export class BattleRenderer {
         break;
       }
       case "skill":
-        this.skillFx(e.src, e.quality, now);
+        this.skillFx(e.src, e.quality, now, e.index);
         break;
       case "death": {
         const p = this.positions.get(e.uid);
@@ -294,6 +310,7 @@ export class BattleRenderer {
       this.fx.ambient(W, this.floorY(), this.bg.ramps.hazard[3]!);
     }
 
+    this.drawSlashes(now);
     this.weaponFx(now);
     this.fx.update(dt);
     this.fx.draw(ctx);
@@ -576,7 +593,7 @@ export class BattleRenderer {
     }
   }
 
-  private skillFx(src: number, quality: string, now: number): void {
+  private skillFx(src: number, quality: string, now: number, index = 0): void {
     const p = this.positions.get(src);
     if (!p) return;
     const cx = p.x + p.w / 2;
@@ -589,6 +606,10 @@ export class BattleRenderer {
       this.fx.ring({ x: cx, y: cy, r0: 6, r1: 70, color: C.teal, width: 3, squash: 0.7, max: 0.45 });
     }
     this.hitStop(quality === "perfect" ? 90 : 50, now);
+    if (isHero && index > 0) {
+      this.rageSkillFx(p, index, now);
+      return;
+    }
     if (cls === "butcher") {
       this.skillGlow = { color: C.teal, until: now + 450, uid: src };
       this.shake(4, 220, now);
@@ -636,6 +657,141 @@ export class BattleRenderer {
       // Enemy hero (PvP) or boss: red burst.
       this.fx.ring({ x: cx, y: cy, r0: 4, r1: 50, color: C.danger, width: 3, squash: 0.6, max: 0.4 });
       this.shake(3, 180, now);
+    }
+  }
+
+  /** Blade trail over a hit enemy: a cleaver arc, a bullet streak or a hex arc, colored by the weapon's rarity. */
+  private slash(cx: number, cy: number, dst: Pos, dir: number, crit: boolean, skill: boolean, now: number): void {
+    const tier = this.heroLook.weaponTier;
+    const base = tier === "none" || tier === "common" ? "#e8e6e3" : tierColor(tier);
+    const color = this.heroClass === "hexer" ? (skill ? "#a6f03a" : "#c78cff") : skill ? C.teal : base;
+    const r = Math.max(14, Math.max(dst.w, dst.h) * (skill ? 0.75 : 0.6));
+    const width = (crit ? 9 : 6) * (skill ? 1.3 : 1);
+    const kind: Slash["kind"] = this.heroClass === "gunslinger" ? "streak" : "arc";
+    // The arc's centre sits behind the target, so the blade sweeps up across the side facing the hero.
+    // A random tilt keeps repeated hits from looking stamped.
+    const tilt = (Math.random() - 0.5) * 0.6;
+    const a0 = dir > 0 ? Math.PI - 1.15 + tilt : 1.15 + tilt;
+    const sweep = dir > 0 ? 2.3 : -2.3;
+    const x = kind === "arc" ? cx + dir * r * 0.45 : cx;
+    this.slashes.push({ kind, x, y: cy, r, a0, sweep, width, color, born: now, life: crit ? 260 : 200 });
+    if (crit) this.slashes.push({ kind, x, y: cy, r: r * 0.9, a0: a0 + sweep, sweep: -sweep, width: width * 0.8, color, born: now + 50, life: 240 });
+    if (this.slashes.length > 24) this.slashes.splice(0, this.slashes.length - 24);
+  }
+
+  private drawSlashes(now: number): void {
+    const { ctx } = this;
+    this.slashes = this.slashes.filter((s) => now - s.born < s.life);
+    if (this.slashes.length === 0) return;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.lineCap = "round";
+    for (const s of this.slashes) {
+      const t = (now - s.born) / s.life;
+      if (t < 0) continue;
+      const fade = 1 - t;
+      if (s.kind === "streak") {
+        // Bullet tracer through the target, stretching then thinning out.
+        const len = s.r * 2.2 * Math.min(1, t * 4);
+        const ang = s.a0 + s.sweep / 2 + Math.PI / 2;
+        const dx = Math.cos(ang) * len * 0.5;
+        const dy = Math.sin(ang) * len * 0.15;
+        for (const [w, c, a] of [[s.width * 1.6, s.color, 0.35], [s.width * 0.6, "#ffffff", 0.9]] as const) {
+          ctx.globalAlpha = a * fade;
+          ctx.strokeStyle = c;
+          ctx.lineWidth = w * fade;
+          ctx.beginPath();
+          ctx.moveTo(s.x - dx, s.y - dy);
+          ctx.lineTo(s.x + dx, s.y + dy);
+          ctx.stroke();
+        }
+        continue;
+      }
+      // Crescent: a tapered arc that sweeps in fast, then fades while its tail catches up.
+      const head = Math.min(1, t / 0.35);
+      const tail = Math.max(0, (t - 0.25) / 0.75);
+      const steps = 14;
+      for (const [wMul, c, a] of [[1.8, s.color, 0.35], [1, s.color, 0.85], [0.35, "#ffffff", 1]] as const) {
+        ctx.strokeStyle = c;
+        for (let i = 0; i < steps; i++) {
+          const u0 = tail + ((head - tail) * i) / steps;
+          const u1 = tail + ((head - tail) * (i + 1)) / steps;
+          if (u1 <= u0) continue;
+          const taper = Math.sin(Math.PI * ((i + 0.5) / steps));
+          ctx.globalAlpha = a * fade;
+          ctx.lineWidth = Math.max(0.5, s.width * wMul * taper);
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, s.a0 + s.sweep * u0, s.a0 + s.sweep * u1, s.sweep < 0);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  /** Rage skills 1–2 (the signature skill keeps the effects above). */
+  private rageSkillFx(p: Pos, index: number, now: number): void {
+    const cx = p.x + p.w / 2;
+    const cy = p.y + p.h / 2;
+    const enemies = this.units.filter((u) => u.side === 1 && u.alive).map((u) => this.positions.get(u.uid)).filter((x): x is Pos => !!x);
+    const front = enemies.sort((a, b) => a.x - b.x)[0];
+    const line = (x0: number, y0: number, x1: number, y1: number, colors: string[], size: number) => {
+      const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 3);
+      for (let i = 0; i < n; i++) {
+        const t = i / n;
+        this.fx.spawn({ x: x0 + (x1 - x0) * t, y: y0 + (y1 - y0) * t, max: 0.2 + t * 0.15, size, colors, additive: true });
+      }
+    };
+    const shieldBurst = (color: string) => {
+      this.fx.ring({ x: cx, y: cy, r0: 4, r1: p.w * 1.1, color, width: 3, squash: 1, max: 0.5 });
+      this.fx.ring({ x: cx, y: p.y + p.h, r0: 4, r1: p.w * 1.3, color, width: 2, squash: 0.3, max: 0.6 });
+      for (let i = 0; i < 24; i++) {
+        const ang = (i / 24) * Math.PI * 2;
+        this.fx.spawn({ x: cx + Math.cos(ang) * p.w * 0.6, y: cy + Math.sin(ang) * p.h * 0.6, vx: -Math.cos(ang) * 20, vy: -Math.sin(ang) * 20 - 10, max: 0.6, size: 2, colors: ["#ffffff", color], additive: true });
+      }
+    };
+    if (this.heroClass === "butcher") {
+      if (index === 1 && front) {
+        // Meat hook: a chain lashes out, then yanks.
+        this.skillGlow = { color: "#c8c8d2", until: now + 300, uid: this.heroUid };
+        line(p.x + p.w, cy, front.x + front.w / 2, front.y + front.h / 2, ["#ffffff", "#c8c8d2", "#5c5c6c"], 2);
+        this.fx.ring({ x: front.x + front.w / 2, y: front.y + front.h / 2, r0: 3, r1: 30, color: "#ffffff", width: 3, squash: 1, max: 0.25 });
+        this.shake(6, 240, now);
+        this.hitStop(90, now);
+      } else {
+        // Feast: a green surge and a bone-white shield.
+        this.skillGlow = { color: C.heal, until: now + 500, uid: this.heroUid };
+        for (let i = 0; i < 4; i++) this.fx.healMotes(cx + (Math.random() - 0.5) * p.w, p.y + p.h * 0.7);
+        shieldBurst("#f0ead8");
+      }
+    } else if (this.heroClass === "gunslinger") {
+      this.skillGlow = { color: "#fff3c4", until: now + 400, uid: this.heroUid };
+      if (index === 1) {
+        // Fan the hammer: a muzzle flash for every shot.
+        for (let i = 0; i < 30; i++) {
+          const ang = (Math.random() - 0.5) * 1.4;
+          this.fx.spawn({ x: p.x + p.w, y: cy, vx: Math.cos(ang) * 240, vy: Math.sin(ang) * 140, drag: 6, max: 0.2, size: 2, colors: ["#ffffff", "#fff3c4", C.gold], additive: true });
+        }
+        this.shake(5, 300, now);
+      } else {
+        // Smoke bomb: a grey cloud rolls over every enemy.
+        for (const e of enemies) for (let i = 0; i < 6; i++) this.fx.smoke(e.x + Math.random() * e.w, e.y + e.h * (0.3 + Math.random() * 0.6));
+        shieldBurst("#cfe6ff");
+      }
+    } else {
+      if (index === 1) {
+        // Soul drain: a green beam from the weakest enemy back into the hexer.
+        const weakest = this.units.filter((u) => u.side === 1 && u.alive).sort((a, b) => a.hp - b.hp)[0];
+        const wp = weakest && this.positions.get(weakest.uid);
+        this.skillGlow = { color: "#a6f03a", until: now + 600, uid: this.heroUid };
+        if (wp) line(wp.x + wp.w / 2, wp.y + wp.h / 2, cx, cy, ["#ffffff", "#a6f03a", "#3d7a14"], 3);
+        this.shake(3, 200, now);
+      } else {
+        // Hex ward: violet shield; every enemy gets dizzy sparks.
+        this.skillGlow = { color: "#c78cff", until: now + 600, uid: this.heroUid };
+        shieldBurst("#c78cff");
+        for (const e of enemies) this.fx.ring({ x: e.x + e.w / 2, y: e.y - 4, r0: 2, r1: e.w * 0.5, color: "#c78cff", width: 2, squash: 0.35, max: 0.6 });
+      }
     }
   }
 
