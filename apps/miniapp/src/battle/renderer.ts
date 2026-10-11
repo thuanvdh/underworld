@@ -1,4 +1,5 @@
-import type { ClassId } from "@underworld/shared";
+import type { ClassId, Look } from "@underworld/shared";
+import { heroArt, tierColor, type HeroArt } from "../art/hero.ts";
 import type { BattleEvent, UnitView } from "@underworld/combat";
 import { C } from "../art/palette.ts";
 import { height, raster, recolor, spritePixels, width, type Sprite } from "../art/pixel.ts";
@@ -97,6 +98,7 @@ export class BattleRenderer {
   private units: readonly UnitView[] = [];
   private readonly chapter: string;
   private readonly heroClass: ClassId;
+  private readonly heroLook: HeroArt;
   private lastNow = 0;
   private shakeAmp = 0;
   private shakeUntil = 0;
@@ -115,10 +117,11 @@ export class BattleRenderer {
   private fog: HTMLCanvasElement | null = null;
   heroUid = 1;
 
-  constructor(canvas: HTMLCanvasElement, chapter: string, heroClass: ClassId) {
+  constructor(canvas: HTMLCanvasElement, chapter: string, heroClass: ClassId, look: Look = {}) {
     this.ctx = canvas.getContext("2d")!;
     this.chapter = chapter;
     this.heroClass = heroClass;
+    this.heroLook = heroArt(heroClass, look);
   }
 
   /** 0 during hit-stop, slowed during the finishing blow, else 1. The game loop scales sim time by this. */
@@ -151,6 +154,15 @@ export class BattleRenderer {
           const cx = dst.x + dst.w / 2;
           const cy = dst.y + dst.h * 0.45;
           this.fx.hitSparks(cx, cy, a.knock, e.crit);
+          const tier = this.heroLook.weaponTier;
+          if (e.src === this.heroUid && (tier === "rare" || tier === "epic" || tier === "legendary")) {
+            const color = tierColor(tier);
+            for (let i = 0; i < (tier === "legendary" ? 10 : tier === "epic" ? 7 : 4); i++) {
+              const ang = (Math.random() - 0.5) * 2 + (a.knock > 0 ? 0 : Math.PI);
+              this.fx.spawn({ x: cx, y: cy, vx: Math.cos(ang) * (90 + Math.random() * 90), vy: Math.sin(ang) * 90 - 20, g: 200, drag: 2, max: 0.35, size: 2, colors: ["#ffffff", color], streak: true, additive: true });
+            }
+            if (tier === "legendary") this.fx.ring({ x: cx, y: cy, r0: 2, r1: 18, color: "#ffc93c", width: 2, squash: 0.9, max: 0.22 });
+          }
           if (!toHero && (e.crit || e.skill)) this.fx.splat(cx, cy, goreColor(dst.sprite), this.floorY() + 18, a.knock);
         }
         if (toHero) {
@@ -280,6 +292,7 @@ export class BattleRenderer {
       this.fx.ambient(W, this.floorY(), this.bg.ramps.hazard[3]!);
     }
 
+    this.weaponFx(now);
     this.fx.update(dt);
     this.fx.draw(ctx);
     this.drawLights(W, H, now);
@@ -324,7 +337,7 @@ export class BattleRenderer {
   }
 
   private spriteOf(u: UnitView): { sprite: Sprite; scale: number } {
-    if (u.side === 0) return { sprite: HEROES[this.heroClass], scale: ART };
+    if (u.side === 0) return { sprite: this.heroLook.sprite, scale: ART };
     if (u.kind === "hero") return { sprite: HEROES[u.key as ClassId] ?? HEROES.butcher, scale: ART };
     // Bosses: 2× / 1.5× the art size (integer canvas scales keep pixels square).
     return { sprite: enemySprite(u.key), scale: u.kind === "chapterBoss" ? 4 : u.kind === "boss" ? 3 : ART };
@@ -418,12 +431,14 @@ export class BattleRenderer {
     ctx.beginPath();
     ctx.ellipse(p.x + p.w / 2 + dx * 0.3, p.y + p.h + 1, (p.w / 2) * 0.8, 3 * ART * 0.6, 0, 0, Math.PI * 2);
     ctx.fill();
+    if (u.side === 0 && this.heroLook.aura) this.drawAura(p, now);
 
     // Afterimages from the lunge.
     a.trail = a.trail.filter((t) => now - t.at < 140);
     for (const t of a.trail) {
       ctx.globalAlpha = 0.25 * (1 - (now - t.at) / 140);
-      this.blit(tinted(p.sprite, u.side === 0 ? C.teal : "#b46cff"), t.x, p.y + dy, p.w, p.h, flip, 1, 1);
+      const trailColor = u.side === 0 ? (this.heroLook.weaponTier === "none" || this.heroLook.weaponTier === "common" ? C.teal : tierColor(this.heroLook.weaponTier)) : "#b46cff";
+      this.blit(tinted(p.sprite, trailColor), t.x, p.y + dy, p.w, p.h, flip, 1, 1);
     }
     ctx.globalAlpha = 1;
 
@@ -454,6 +469,65 @@ export class BattleRenderer {
       ctx.fillStyle = "#8fd6ff";
       ctx.fill();
       ctx.globalAlpha = 1;
+    }
+  }
+
+  /** Gear aura at the hero's feet: a pulsing ring and rising motes in the gear's rarity color. */
+  private drawAura(p: Pos, now: number): void {
+    const { ctx } = this;
+    const color = this.heroLook.aura === "legendary" ? "#ffc93c" : "#b46cff";
+    const pulse = 0.5 + Math.sin(now / 260) * 0.25;
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.35 * pulse + 0.15;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(p.x + p.w / 2, p.y + p.h + 1, p.w * 0.55, 6, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    if (Math.random() < 0.35) {
+      this.fx.spawn({ x: p.x + p.w * (0.15 + Math.random() * 0.7), y: p.y + p.h, vy: -30 - Math.random() * 30, max: 0.8, size: 1 + (Math.random() < 0.3 ? 1 : 0), colors: [this.heroLook.aura === "legendary" ? "#fff3c4" : "#ecd8ff", color, "#3a2a50"], additive: true });
+    }
+  }
+
+  /** Weapon light and particles that grow with its rarity. */
+  private weaponFx(now: number): void {
+    const tier = this.heroLook.weaponTier;
+    if (tier === "none" || tier === "common") return;
+    const p = this.positions.get(this.heroUid);
+    const hero = this.units.find((u) => u.uid === this.heroUid);
+    if (!p || !hero?.alive) return;
+    const box = this.heroLook.weapon;
+    const cx = p.x + (box.x + box.w / 2) * p.scale;
+    const cy = p.y + (box.y + box.h / 2) * p.scale;
+    const color = tierColor(tier);
+    const { ctx } = this;
+    const strength = tier === "legendary" ? 0.45 : tier === "epic" ? 0.32 : tier === "rare" ? 0.22 : 0.12;
+    const flicker = tier === "legendary" ? 0.85 + Math.sin(now / 50) * 0.1 + Math.sin(now / 17) * 0.05 : 0.85 + Math.sin(now / 300) * 0.15;
+    const r = (tier === "legendary" ? 30 : tier === "epic" ? 24 : 18) * (0.9 + 0.1 * flicker);
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, hexA(color, strength * flicker));
+    g.addColorStop(1, hexA(color, 0));
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    ctx.restore();
+    const bx = p.x + box.x * p.scale;
+    const by = p.y + box.y * p.scale;
+    const bw = box.w * p.scale;
+    const bh = box.h * p.scale;
+    if (tier === "epic" && Math.random() < 0.45) {
+      // Twinkling sparks around the weapon.
+      this.fx.spawn({ x: bx + Math.random() * bw, y: by + Math.random() * bh, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 20, max: 0.45, size: 1, colors: ["#ffffff", "#ecd8ff", color], additive: true });
+    }
+    if (tier === "legendary") {
+      // Embers licking up the blade plus gold glints.
+      for (let i = 0; i < 2; i++) {
+        this.fx.spawn({ x: bx + Math.random() * bw, y: by + Math.random() * bh * 0.7, vx: (Math.random() - 0.5) * 12, vy: -40 - Math.random() * 40, max: 0.5 + Math.random() * 0.3, size: 1 + (i === 0 ? 1 : 0), colors: ["#fff3c4", "#ffc93c", "#ff7a1a", "#8a2a00"], additive: true });
+      }
+      if (Math.random() < 0.2) this.fx.spawn({ x: bx + Math.random() * bw, y: by + Math.random() * bh, max: 0.25, size: 2, colors: ["#ffffff", "#fff3c4"], additive: true });
     }
   }
 

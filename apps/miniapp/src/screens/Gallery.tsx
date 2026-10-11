@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { CHAPTERS, RARITIES, SLOTS, type Item } from "@underworld/shared";
 import { backdrop } from "../art/scene.ts";
+import { heroArt } from "../art/hero.ts";
 import { HEROES, enemyScale, enemySprite } from "../art/sprites/characters.ts";
 import { ICONS } from "../art/sprites/icons.ts";
 import { SpriteImg } from "../art/Sprite.tsx";
@@ -51,6 +52,26 @@ export function Gallery() {
         <LootRow
           rewards={{ gold: 12450, exp: 3200, stones: 6, gems: 20, dust: 0, autoSalvaged: 0, levelFrom: 9, levelTo: 10, items: RARITIES.map((r, i) => fake(r, SLOTS[i]!)) }}
         />
+      </div>
+
+      <div className="panel" id="paperdoll">
+        <div className="label">Paper-doll · full sets by rarity</div>
+        {(["butcher", "gunslinger", "hexer"] as const).map((c) => (
+          <div key={c} style={{ display: "flex", gap: 6, alignItems: "end", marginTop: 10, flexWrap: "wrap" }}>
+            {[undefined, ...RARITIES].map((r) => {
+              const look = r ? Object.fromEntries(SLOTS.map((s) => [s, r])) : {};
+              const art = heroArt(c, look);
+              return (
+                <div key={r ?? "none"} style={{ textAlign: "center" }}>
+                  <SpriteImg sprite={art.sprite} scale={2} />
+                  <div className={`r-${r ?? "common"}`} style={{ fontSize: 9 }}>
+                    {r ?? "bare"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       <div className="panel">

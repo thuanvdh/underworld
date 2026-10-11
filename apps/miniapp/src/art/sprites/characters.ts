@@ -1,146 +1,16 @@
 import type { ClassId } from "@underworld/shared";
 import { C } from "../palette.ts";
+import { heroArt } from "../hero.ts";
 import { outlined, recolor, type Sprite } from "../pixel.ts";
 
-const SKIN = { s: "#9a6440", S: "#c08458", d: "#6b4128" };
 const OUT = C.outline;
 
-// ───────────────────────── heroes (16×22, facing right) ─────────────────────────
-
-const butcher: Sprite = outlined(
-  {
-    rows: [
-      "....qqrrrRR.....",
-      "...qrrrrrrRR....",
-      "..qqrrrrrrrRR...",
-      ".q.dssssssSS....",
-      "q..dsssskSSS....",
-      "...dssssssSs....",
-      "...dbsssssSb....",
-      "...bbbbsssbb....",
-      "....bbbbbbb.....",
-      "..qqrrrrrrrRR...",
-      ".qqrrlllllLrRRgG",
-      ".qsrrlllllLrRsgG",
-      ".dsqrlllllLrRshG",
-      ".ds.qlllllLm.sn.",
-      "..d.mlllllLm..n.",
-      "....mlllllmm....",
-      "....pppPPPpp....",
-      "....ppp..Ppp....",
-      "....ppp..Ppp....",
-      "....ppp..Ppp....",
-      "...oooo..oooo...",
-      "...oooo..oooo...",
-    ],
-    palette: {
-      ...SKIN,
-      r: "#c43a2f",
-      R: "#e8573f",
-      q: "#7d2219",
-      k: C.abyss,
-      b: "#2a1b12",
-      l: "#6e4a2a",
-      L: "#946437",
-      m: "#48301b",
-      p: "#2e2e3c",
-      P: "#44445a",
-      o: "#3a271a",
-      g: "#9a9aa8",
-      G: "#d8d8e2",
-      h: "#5c5c6c",
-      n: "#6b4a2b",
-    },
-  },
-  OUT,
-);
-
-const gunslinger: Sprite = outlined(
-  {
-    rows: [
-      "................",
-      ".....hhhhH......",
-      ".....hhhhhH.....",
-      "..hhhhhhhhhhH...",
-      "....dssssSS.....",
-      "....dsssskS.....",
-      "....dssssSS.....",
-      ".....ffffff.....",
-      "....ffffffff....",
-      "...cccccccCC....",
-      "..ccccccccCCC...",
-      "..scccccccCCs...",
-      "..sccccccccCsgGG",
-      "...cccccccCC.g..",
-      "...cccccccCC....",
-      "...ccc.pp.CC....",
-      "....ppp..ppp....",
-      "....ppp..ppp....",
-      "....ppp..ppp....",
-      "....ppp..ppp....",
-      "...oooo..oooo...",
-      "...oooo..oooo...",
-    ],
-    palette: {
-      ...SKIN,
-      k: C.abyss,
-      h: "#5a3d24",
-      H: "#7a5634",
-      f: "#b8862b",
-      c: "#2f3a52",
-      C: "#44547a",
-      p: "#2a2a36",
-      o: "#3a271a",
-      g: "#9a9aa8",
-      G: "#d8d8e2",
-    },
-  },
-  OUT,
-);
-
-const hexer: Sprite = outlined(
-  {
-    rows: [
-      "......vvvV......",
-      ".....vvvvvV.....",
-      "....vvvvvvVV....",
-      "....vvxxxxVV....",
-      "...vvxxexexVV...",
-      "...vvxxxxxxVV...",
-      "...vvvxxxxVVV...",
-      "..vvvvvvvvvVVV..",
-      "..vvvvvyyyvVVV..",
-      ".svvvvvvvvvVVs..",
-      ".svvvvvvvvvVVsa.",
-      "..vvvvvvvvvVVazZ",
-      "..vvvvvvvvvVVzZz",
-      "..vvvvvvvvvVV.z.",
-      "..vvvvvvvvvVV...",
-      ".vvvvvvvvvvvVV..",
-      ".vvvvvvvvvvvVV..",
-      ".vvvvvvvvvvvVV..",
-      "vvvvvvvvvvvvvVV.",
-      "vvvvvvvvvvvvvVV.",
-      ".oooo....oooo...",
-      "................",
-    ],
-    palette: {
-      ...SKIN,
-      v: "#3d2456",
-      V: "#5a3680",
-      x: "#120c18",
-      e: "#5cff8f",
-      y: "#c9a548",
-      a: "#a8c8d8",
-      z: "#6cc31f",
-      Z: "#a6f03a",
-      o: "#2a1d14",
-    },
-  },
-  OUT,
-);
-
-export const HEROES: Record<ClassId, Sprite> = { butcher, gunslinger, hexer };
+// Heroes are paper-dolls now (art/hero.ts); HEROES is the unequipped look, kept for simple uses.
+export const HEROES: Record<ClassId, Sprite> = {
+  butcher: heroArt("butcher").sprite,
+  gunslinger: heroArt("gunslinger").sprite,
+  hexer: heroArt("hexer").sprite,
+};
 
 // ───────────────────────── monster bases ─────────────────────────
 
@@ -368,4 +238,4 @@ export function enemyScale(kind: string): number {
 }
 
 /** Exposed for the sprite sanity test. */
-export const ALL_CHARACTER_SPRITES: Sprite[] = [butcher, gunslinger, hexer, ...Object.values(ENEMIES)];
+export const ALL_CHARACTER_SPRITES: Sprite[] = Object.values(ENEMIES);

@@ -1,5 +1,5 @@
 import type { BattleInputs, BattleResult, BattleSetup } from "@underworld/combat";
-import type { ClassId, Equipment, Item, Reward, SetCode, Stats } from "@underworld/shared";
+import type { ClassId, Equipment, Item, Look, Reward, SetCode, Stats } from "@underworld/shared";
 import { initData } from "./telegram.ts";
 
 export interface PlayerView {
@@ -23,6 +23,8 @@ export interface PlayerView {
   power: number;
   stats: Stats;
   sets: Partial<Record<SetCode, number>>;
+  /** Rarity worn in each slot by the current class (paper-doll sprite). */
+  look: Look;
   newbieFreeUntil: number;
   classChangeFreeUntil: number;
   afk: { unlocked: boolean; hours: number; maxHours: number; gold: number; exp: number; stones: number; items: number };

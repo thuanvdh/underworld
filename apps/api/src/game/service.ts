@@ -23,6 +23,7 @@ import {
   forgeStonesCost,
   generateItem,
   isChapterBossFloor,
+  lookOf,
   power,
   rollEnhance,
   salvageYield,
@@ -379,7 +380,8 @@ export class GameService {
     const now = this.now();
     const energy = { ...p };
     this.regenEnergy(energy, now);
-    const hero = buildHero(p.classId, p.level, await this.equipment(p));
+    const equipped = await this.equipment(p);
+    const hero = buildHero(p.classId, p.level, equipped);
     const afkUnlocked = p.level >= UNLOCK_LEVEL.afk;
     const pending = afkUnlocked ? this.afkPending(p, now) : null;
     const forgeToday = p.forgeDay === dayKey(now) ? p.forgeBought : 0;
@@ -404,6 +406,7 @@ export class GameService {
       power: power(hero.stats),
       stats: hero.stats,
       sets: hero.sets,
+      look: lookOf(equipped),
       newbieFreeUntil: p.createdAt + ENERGY.newbieFreeHours * HOUR_MS,
       classChangeFreeUntil: p.createdAt + CLASS_CHANGE_FREE_MS,
       afk: pending

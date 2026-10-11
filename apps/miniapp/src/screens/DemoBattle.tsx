@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Rng, SLOTS, buildHero, chapterOf, generateItem, type ClassId, type Equipment } from "@underworld/shared";
+import { Rng, SLOTS, buildHero, chapterOf, generateItem, lookOf, type ClassId, type Equipment, type Rarity } from "@underworld/shared";
 import { Battle, buildDungeonSetup } from "@underworld/combat";
 import { BattleRenderer } from "../battle/renderer.ts";
 import { usePixelCanvas } from "../art/usePixelCanvas.ts";
@@ -21,13 +21,13 @@ export function DemoBattle() {
     const rng = new Rng(floor * 31 + run);
     const eq: Equipment = {};
     for (const slot of SLOTS) {
-      const it = generateItem(rng, { rarity: "epic", ilvl: floor + 4, slot });
+      const it = generateItem(rng, { rarity: (params.get("rarity") as Rarity) ?? "epic", ilvl: floor + 4, slot, classId });
       it.enhance = 8;
       eq[slot] = it;
     }
     const hero = buildHero(classId, Math.min(60, floor + 6), eq);
     const battle = new Battle(buildDungeonSetup(floor, hero, 1000 + run), { recordEvents: true, autopilot: "perfect" });
-    const renderer = new BattleRenderer(canvasRef.current!, chapterOf(floor).key, classId);
+    const renderer = new BattleRenderer(canvasRef.current!, chapterOf(floor).key, classId, lookOf(eq));
     let raf = 0;
     let last = performance.now();
     let acc = 0;

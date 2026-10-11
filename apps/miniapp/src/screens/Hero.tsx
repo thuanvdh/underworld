@@ -11,10 +11,11 @@ import {
   type ClassId,
   type Equipment,
   type Item,
+  type Look,
   type Slot,
 } from "@underworld/shared";
 import { api } from "../api.ts";
-import { HEROES } from "../art/sprites/characters.ts";
+import { heroArt, tierColor } from "../art/hero.ts";
 import { CLASS_COLOR, ICONS } from "../art/sprites/icons.ts";
 import { SpriteImg } from "../art/Sprite.tsx";
 import { ItemIcon } from "../components/ItemIcon.tsx";
@@ -108,7 +109,7 @@ export function Hero({ onChangeClass }: { onChangeClass: () => void }) {
       <div className="panel gear">
         <div className="gear-col">{LEFT.map(slotButton)}</div>
         <div className="gear-hero">
-          <SpriteImg sprite={HEROES[player.classId]} scale={6} />
+          <HeroFigure player={player} />
           <span className="label small">{CLASS_NAMES[player.classId]}</span>
           <button className="btn small" style={{ marginTop: 6 }} onClick={onChangeClass}>
             Switch hunter
@@ -242,6 +243,17 @@ export function Hero({ onChangeClass }: { onChangeClass: () => void }) {
           onSalvage={() => salvage([selected.id])}
         />
       )}
+    </div>
+  );
+}
+
+/** Big paper-doll with a rarity aura and weapon glow (CSS), matching what the battle shows. */
+function HeroFigure({ player }: { player: { classId: ClassId; look: Look } }) {
+  const art = heroArt(player.classId, player.look);
+  const glow = art.weaponTier === "none" || art.weaponTier === "common" ? undefined : tierColor(art.weaponTier);
+  return (
+    <div className={`hero-figure ${art.aura ?? ""}`}>
+      <SpriteImg sprite={art.sprite} scale={6} style={glow ? { filter: `drop-shadow(0 0 6px ${glow}) drop-shadow(0 0 2px ${glow})` } : undefined} />
     </div>
   );
 }

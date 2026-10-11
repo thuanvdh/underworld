@@ -180,7 +180,7 @@ export function BattleScreen({ floor, onExit }: { floor: number; onExit: (nextFl
       setPlayer(res.player);
       battleIdRef.current = res.battleId;
       battleRef.current = new Battle(res.setup, { recordEvents: true });
-      renderer = new BattleRenderer(canvasRef.current, chapterOf(floor).key, res.setup.hero.classId);
+      renderer = new BattleRenderer(canvasRef.current, chapterOf(floor).key, res.setup.hero.classId, res.player.look);
       last = performance.now();
       raf = requestAnimationFrame(frame);
     })();

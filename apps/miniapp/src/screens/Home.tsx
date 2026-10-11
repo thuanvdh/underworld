@@ -66,7 +66,7 @@ export function Home({ onFight, onOpenHero, onOpenQuests }: { onFight: (floor: n
       )}
 
       <div className="scene">
-        <SceneView chapter={chapter.key} classId={player.classId} chestReady={player.afk.unlocked && player.afk.gold > 0} onChest={claim} />
+        <SceneView chapter={chapter.key} classId={player.classId} look={player.look} chestReady={player.afk.unlocked && player.afk.gold > 0} onChest={claim} />
         <div className="tag">
           CH.{chapter.number} · {CHAPTER_NAMES[chapter.key]}
         </div>

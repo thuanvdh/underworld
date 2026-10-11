@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { CLASSES, type ClassId } from "@underworld/shared";
+import { CLASSES, type ClassId, type Look } from "@underworld/shared";
+import { heroArt } from "../art/hero.ts";
 import { api } from "../api.ts";
 import { backdrop } from "../art/scene.ts";
 import { drawSprite, height, raster, width } from "../art/pixel.ts";
@@ -101,7 +102,7 @@ export function CharacterSelect({ mode, onDone, onCancel }: { mode: "first" | "c
         <div className="label small">{mode === "first" ? "Choose your hunter" : "Level and gear are shared · switch any time"}</div>
       </div>
 
-      <Stage classId={picked} />
+      <Stage classId={picked} look={picked === player.classId ? player.look : {}} />
 
       <div className="select-body">
         <div className="row">
@@ -197,11 +198,13 @@ export function CharacterSelect({ mode, onDone, onCancel }: { mode: "first" | "c
 }
 
 /** Big animated hero on the Sewers backdrop, with a class-colored aura and a flash when switching. */
-function Stage({ classId }: { classId: ClassId }) {
+function Stage({ classId, look }: { classId: ClassId; look: Look }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { w, h } = usePixelCanvas(boxRef, canvasRef, { targetPixelWidth: 110, aspect: 0.72 });
   const classRef = useRef(classId);
+  const lookRef = useRef(look);
+  lookRef.current = look;
   const swapAt = useRef(0);
   useEffect(() => {
     if (classRef.current !== classId) swapAt.current = performance.now();
@@ -219,7 +222,7 @@ function Stage({ classId }: { classId: ClassId }) {
       const dt = (now - last) / 1000;
       last = now;
       const cls = classRef.current;
-      const sprite = HEROES[cls];
+      const sprite = heroArt(cls, lookRef.current).sprite;
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(bg.canvas, 0, 0);
       ctx.fillStyle = "rgba(8,8,14,0.55)";

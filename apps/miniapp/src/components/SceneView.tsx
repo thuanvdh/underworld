@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import type { ClassId } from "@underworld/shared";
+import type { ClassId, Look } from "@underworld/shared";
+import { heroArt, tierColor } from "../art/hero.ts";
 import { animate, backdrop } from "../art/scene.ts";
-import { HEROES } from "../art/sprites/characters.ts";
 import { ICONS } from "../art/sprites/icons.ts";
 import { drawSprite, height, width } from "../art/pixel.ts";
 import { usePixelCanvas } from "../art/usePixelCanvas.ts";
@@ -10,12 +10,12 @@ import { usePixelCanvas } from "../art/usePixelCanvas.ts";
  * Home scene: the chapter backdrop with the hero idling and the AFK chest. The chest sparkles when there's
  * loot waiting; tapping it claims.
  */
-export function SceneView({ chapter, classId, chestReady, onChest }: { chapter: string; classId: ClassId; chestReady: boolean; onChest?: () => void }) {
+export function SceneView({ chapter, classId, look, chestReady, onChest }: { chapter: string; classId: ClassId; look: Look; chestReady: boolean; onChest?: () => void }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { w, h, scale } = usePixelCanvas(boxRef, canvasRef, { targetPixelWidth: 120, aspect: 0.62 });
-  const stateRef = useRef({ chestReady, classId });
-  stateRef.current = { chestReady, classId };
+  const stateRef = useRef({ chestReady, classId, look });
+  stateRef.current = { chestReady, classId, look };
   const chestBox = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
   useEffect(() => {
@@ -33,13 +33,35 @@ export function SceneView({ chapter, classId, chestReady, onChest }: { chapter: 
       ctx.drawImage(bg.canvas, 0, 0);
       animate(ctx, bg, t);
 
-      const hero = HEROES[stateRef.current.classId];
+      const art = heroArt(stateRef.current.classId, stateRef.current.look);
+      const hero = art.sprite;
       const bob = Math.floor(t / 500) % 2;
       const hx = Math.round(w * 0.22);
       const hy = bg.floorY - height(hero) + 2 + bob;
       ctx.fillStyle = "#00000066";
       ctx.fillRect(hx + 2, bg.floorY + 1, width(hero) - 4, 2);
+      if (art.aura) {
+        ctx.fillStyle = art.aura === "legendary" ? "#ffc93c" : "#b46cff";
+        ctx.globalAlpha = 0.35 + Math.sin(t / 260) * 0.15;
+        ctx.fillRect(hx, bg.floorY + 1, width(hero), 1);
+        ctx.globalAlpha = 1;
+        const life = (t / 70) % 14;
+        ctx.fillRect(hx + 2 + ((Math.floor(t / 300) * 5) % (width(hero) - 4)), bg.floorY - life, 1, 1);
+      }
       drawSprite(ctx, hero, hx, hy, 1);
+      if (art.weaponTier !== "none" && art.weaponTier !== "common") {
+        // Weapon glint: a bright pixel travelling over the blade/orb, colored by rarity.
+        const box = art.weapon;
+        const k = Math.floor(t / 90) % (box.w + box.h);
+        ctx.fillStyle = tierColor(art.weaponTier);
+        ctx.globalAlpha = 0.9;
+        ctx.fillRect(hx + box.x + Math.min(k, box.w - 1), hy + box.y + Math.max(0, k - box.w), 1, 1);
+        ctx.globalAlpha = 1;
+        if (art.weaponTier === "legendary" && Math.floor(t / 120) % 2) {
+          ctx.fillStyle = "#ffd06a";
+          ctx.fillRect(hx + box.x + (Math.floor(t / 60) % box.w), hy + box.y - 1 - (Math.floor(t / 80) % 4), 1, 1);
+        }
+      }
 
       const chest = ICONS.chest;
       const cx = Math.round(w * 0.74);

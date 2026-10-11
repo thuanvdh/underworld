@@ -81,6 +81,18 @@ export interface Item {
 
 export type Equipment = Partial<Record<Slot, Item>>;
 
+/** What a hero visibly wears: the rarity in each slot (drives the paper-doll sprite and its effects). */
+export type Look = Partial<Record<Slot, Rarity>>;
+
+export function lookOf(equipment: Equipment): Look {
+  const look: Look = {};
+  for (const slot of SLOTS) {
+    const item = equipment[slot];
+    if (item) look[slot] = item.rarity;
+  }
+  return look;
+}
+
 export function emptyStats(): Stats {
   return { hp: 0, atk: 0, def: 0, spd: 0, critBp: 0, critDmgBp: 0, lifestealBp: 0, penBp: 0, dmgReduceBp: 0 };
 }

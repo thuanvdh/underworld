@@ -1476,3 +1476,32 @@ button:disabled {
 .shop-row .grow {
   flex: 1;
 }
+
+/* Paper-doll figure on the Hero screen: aura glow for 3+ epic/legendary pieces. */
+.hero-figure {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.hero-figure.epic::before,
+.hero-figure.legendary::before {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  width: 140px;
+  height: 26px;
+  border-radius: 50%;
+  animation: aura-pulse 1.6s ease-in-out infinite;
+}
+.hero-figure.epic::before {
+  background: radial-gradient(ellipse, #b46cff80, transparent 70%);
+}
+.hero-figure.legendary::before {
+  background: radial-gradient(ellipse, #ffc93c90, transparent 70%);
+}
+.hero-figure img {
+  position: relative;
+}
+@keyframes aura-pulse {
+  50% { opacity: 0.55; transform: scale(1.12); }
+}

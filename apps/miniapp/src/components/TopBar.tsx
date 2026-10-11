@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useCountUp } from "../hooks/useCountUp.ts";
-import { HEROES } from "../art/sprites/characters.ts";
+import { heroArt } from "../art/hero.ts";
 import { ICONS } from "../art/sprites/icons.ts";
 import { SpriteImg } from "../art/Sprite.tsx";
 import { short } from "../i18n.ts";
@@ -50,7 +50,7 @@ export function TopBar({ onPortrait }: { onPortrait?: () => void }) {
   return (
     <div className="topbar">
       <div className="portrait" onClick={onPortrait} title="Switch hunter">
-        <SpriteImg sprite={HEROES[player.classId]} scale={3} />
+        <SpriteImg sprite={heroArt(player.classId, player.look).sprite} scale={3} />
         <div className="lv">Lv {player.level}</div>
       </div>
       <div className="chips">
