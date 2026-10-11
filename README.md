@@ -60,7 +60,8 @@ Stop the old Python demo bot (`bot/`) if it runs with the same token — two pol
 |---|---|
 | `BOT_TOKEN` | Verifies Mini App `initData` |
 | `SESSION_SECRET` | Signs session tokens (set it, or sessions reset on restart) |
-| `DB_PATH` | SQLite path (default `underworld.db`) |
+| `DATABASE_URL` | PostgreSQL connection string (production storage, e.g. Neon). Overrides `DB_PATH` |
+| `DB_PATH` | SQLite path (default `underworld.db`) — local dev / hosts with a disk |
 | `DEV_AUTH=1` | Allow `{ devUserId }` logins for local dev |
 | `PORT` | API port (default 3000) |
 | `WEBAPP_URL` | Public https URL of the Mini App (bot buttons + menu); optional with `dev:telegram` |
@@ -83,8 +84,17 @@ The repo ships a `Dockerfile` (API + Mini App + bot in one process) and a `rende
    on start the app points the bot's webhook, buttons and menu at it. Open the bot → `/start`.
 4. Stop `npm run dev:telegram` locally first — the same token can't be used by two places at once.
 
-Every push to `main` redeploys. Player data lives on the 1 GB disk at `/data`, with snapshots in
-`/data/backups` every 6 hours (last 8 kept).
+Every push to `main` redeploys.
+
+**Keep player data (free, no card): use PostgreSQL via Neon.** Render's free plan has no persistent disk, so a
+SQLite file is wiped whenever the service sleeps (after 15 min idle) or redeploys.
+1. Sign up at [neon.tech](https://neon.tech) (free plan, no card) → create a project.
+2. Copy the connection string (`postgresql://…neon.tech/neondb?sslmode=require`).
+3. Render → your service → **Environment** → add `DATABASE_URL` = that string → Save (it redeploys).
+The app creates its tables on start; logs show `db PostgreSQL`.
+
+Without `DATABASE_URL` the app falls back to SQLite at `/data/underworld.db` (fine on a host with a disk;
+snapshots go to `/data/backups` every 6 hours).
 
 **Plans:** `starter` (in `render.yaml`) keeps the game awake and allows the disk. On `free` the service sleeps
 after 15 minutes (first message wakes it in ~1 min) and has **no disk — player data resets on every deploy**;
@@ -97,8 +107,9 @@ Set `BOT_MODE=polling` if the host can't receive webhooks.
 ## Deviations from the design docs (deliberate, for the first slice)
 
 - **Fastify instead of NestJS:** Node runs TypeScript natively here, and NestJS decorators need a build step.
-- **SQLite (`node:sqlite`) instead of PostgreSQL** for local dev: zero setup. The schema follows detailed design §22;
-  moving to PostgreSQL is a storage swap in `apps/api/src/db.ts` + `game/player.ts`.
+- **Storage:** PostgreSQL in production (`DATABASE_URL`), SQLite (`node:sqlite`) for local dev and tests — same
+  SQL, one async `Store` interface (`apps/api/src/store.ts`). Run the API tests against PostgreSQL with
+  `TEST_DATABASE_URL=postgres://… node --test "apps/api/test/**/*.test.ts"`.
 - **Canvas 2D instead of PixiJS** for the battle view: smaller bundle (86 KB gzip total); switch when real sprite art lands.
 - **Code-drawn pixel art** following `UNDERWORLD Art Style Tile.pdf`: sprites are character grids in
   `apps/miniapp/src/art/sprites/`, chapter backdrops are procedural (`art/scene.ts`) from the tile's 5-step ramps.

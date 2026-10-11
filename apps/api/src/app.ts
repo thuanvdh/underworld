@@ -5,7 +5,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import type { BattleInputs } from "@underworld/combat";
 import { signSession, verifyInitData, verifySession } from "./auth.ts";
 import type { Config } from "./config.ts";
-import { openDb, type Db } from "./db.ts";
+import { SqliteStore, type Store } from "./store.ts";
 import { GameError } from "./game/errors.ts";
 import { MetaService } from "./game/meta.ts";
 
@@ -20,14 +20,15 @@ const MAX_BOON_PICKS = 3;
 
 export interface AppDeps {
   config: Config;
-  db?: Db;
+  /** Defaults to a SQLite file at config.dbPath. */
+  store?: Store;
   now?: () => number;
 }
 
 /** Build the HTTP API (detailed design §23). All routes live under /api. */
-export function buildApp({ config, db = openDb(config.dbPath), now = Date.now }: AppDeps): FastifyInstance {
+export function buildApp({ config, store = new SqliteStore(config.dbPath), now = Date.now }: AppDeps): FastifyInstance {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 });
-  const game = new MetaService(db, now);
+  const game = new MetaService(store, now);
   const seconds = () => Math.floor(now() / 1000);
 
   app.decorateRequest("playerId", 0);
@@ -67,8 +68,8 @@ export function buildApp({ config, db = openDb(config.dbPath), now = Date.now }:
     } else {
       throw new GameError("unauthorized", "initData required");
     }
-    const player = game.login(telegramId, name, language);
-    return { token: signSession(player.id, config.sessionSecret, seconds()), player: game.view(player) };
+    const player = await game.login(telegramId, name, language);
+    return { token: signSession(player.id, config.sessionSecret, seconds()), player: await game.view(player) };
   });
 
   app.register(async (r) => {

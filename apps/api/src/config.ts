@@ -7,8 +7,10 @@ export interface Config {
   botToken: string;
   /** Secret for signing session tokens. */
   sessionSecret: string;
-  /** SQLite file path; ":memory:" for tests. */
+  /** SQLite file path; ":memory:" for tests. Ignored when databaseUrl is set. */
   dbPath: string;
+  /** PostgreSQL connection string (e.g. Neon). When set, data lives there instead of SQLite. */
+  databaseUrl: string;
   /** Accept `{ devUserId }` logins without Telegram. Never enable in production. */
   devAuth: boolean;
   /** Reject initData older than this. */
@@ -23,6 +25,7 @@ export function loadConfig(overrides: Partial<Config> = {}): Config {
     botToken: process.env.BOT_TOKEN ?? "",
     sessionSecret: process.env.SESSION_SECRET ?? randomBytes(32).toString("hex"),
     dbPath: process.env.DB_PATH ?? "underworld.db",
+    databaseUrl: process.env.DATABASE_URL ?? "",
     devAuth: process.env.DEV_AUTH === "1",
     initDataMaxAgeSeconds: 24 * 3600,
     miniappDist: process.env.MINIAPP_DIST ?? fileURLToPath(new URL("../../miniapp/dist", import.meta.url)),

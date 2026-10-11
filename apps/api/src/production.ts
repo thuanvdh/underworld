@@ -3,7 +3,9 @@
  * Works on Render, Fly, a VPS or any Docker host.
  *
  * Required env: BOT_TOKEN, SESSION_SECRET, and PUBLIC_URL (Render sets RENDER_EXTERNAL_URL automatically).
- * Optional: DB_PATH (default /data/underworld.db), BOT_MODE=polling to use long polling instead of a webhook.
+ * Storage: DATABASE_URL (PostgreSQL, e.g. free Neon) — strongly recommended on hosts without a persistent
+ * disk such as Render's free plan; otherwise a SQLite file at DB_PATH (default /data/underworld.db).
+ * Optional: BOT_MODE=polling to use long polling instead of a webhook.
  */
 import { createHash } from "node:crypto";
 import { accessSync, constants, mkdirSync, readdirSync, rmSync } from "node:fs";
@@ -13,7 +15,7 @@ import { configureBot, createBot } from "@underworld/bot";
 import { webhookCallback } from "grammy";
 import { buildApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
-import { openDb, type Db } from "./db.ts";
+import { PgStore, SqliteStore, type Store } from "./store.ts";
 
 const BACKUP_EVERY_MS = 6 * 3600_000;
 const BACKUPS_KEPT = 8;
@@ -32,17 +34,22 @@ if (missing.length) {
   process.exit(1);
 }
 
-let db: Db;
-try {
-  db = openDb(config.dbPath);
-} catch (err) {
-  // Some volumes allow writes but not SQLite's locking/WAL files; never fail to boot over storage.
-  console.warn(`! Could not open ${config.dbPath} (${err instanceof Error ? err.message : err}) — using ${TMP_DB}.`);
-  mkdirSync(dirname(TMP_DB), { recursive: true });
-  config.dbPath = TMP_DB;
-  db = openDb(TMP_DB);
+let store: Store;
+if (config.databaseUrl) {
+  store = await PgStore.open(config.databaseUrl);
+} else {
+  console.warn("! DATABASE_URL not set — using SQLite. On hosts without a persistent disk, player data is lost on restart.");
+  try {
+    store = new SqliteStore(config.dbPath);
+  } catch (err) {
+    // Some volumes allow writes but not SQLite's locking/WAL files; never fail to boot over storage.
+    console.warn(`! Could not open ${config.dbPath} (${err instanceof Error ? err.message : err}) — using ${TMP_DB}.`);
+    mkdirSync(dirname(TMP_DB), { recursive: true });
+    config.dbPath = TMP_DB;
+    store = new SqliteStore(TMP_DB);
+  }
 }
-const app = buildApp({ config, db });
+const app = buildApp({ config, store });
 
 // ───────── Telegram bot ─────────
 const bot = createBot({ token: config.botToken, webAppUrl: `${publicUrl}/` });
@@ -56,7 +63,7 @@ if (!polling) {
 }
 
 await app.listen({ port: config.port, host: "0.0.0.0" });
-console.log(`UNDERWORLD up on :${config.port} · public ${publicUrl} · db ${config.dbPath}`);
+console.log(`UNDERWORLD up on :${config.port} · public ${publicUrl} · db ${store.dialect === "postgres" ? "PostgreSQL" : config.dbPath}`);
 
 // A bot problem (bad token, Telegram down) must not take the game offline, so it's logged, not fatal.
 try {
@@ -75,13 +82,14 @@ try {
 }
 
 // ───────── Backups ─────────
-startBackups(db, config.dbPath);
+// PostgreSQL providers keep their own backups; snapshot only the SQLite file.
+if (store instanceof SqliteStore) startBackups(store, config.dbPath);
 
 const shutdown = async () => {
   console.log("Shutting down…");
   if (polling) await bot.stop().catch(() => {});
   await app.close();
-  db.close();
+  await store.close();
   process.exit(0);
 };
 process.once("SIGTERM", shutdown);
@@ -106,14 +114,14 @@ function writableDbPath(preferred: string): string {
 }
 
 /** Snapshot the SQLite DB next to it every few hours (VACUUM INTO is consistent while the app runs). */
-function startBackups(database: Db, dbPath: string): void {
+function startBackups(database: SqliteStore, dbPath: string): void {
   if (dbPath === ":memory:") return;
   const dir = join(dirname(dbPath), "backups");
   mkdirSync(dir, { recursive: true });
   const run = () => {
     try {
       const file = join(dir, `underworld-${new Date().toISOString().replace(/[:.]/g, "-")}.db`);
-      database.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
+      database.db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`);
       const old = readdirSync(dir).filter((f) => f.endsWith(".db")).sort().slice(0, -BACKUPS_KEPT);
       for (const f of old) rmSync(join(dir, f));
       console.log(`Backup written: ${file}`);

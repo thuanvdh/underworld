@@ -1,7 +1,6 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import { buildApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
+import { openStore } from "./store.ts";
 
 const config = loadConfig();
 if (!config.botToken && !config.devAuth) {
@@ -10,8 +9,9 @@ if (!config.botToken && !config.devAuth) {
 }
 if (!process.env.SESSION_SECRET) console.warn("SESSION_SECRET not set: sessions reset on every restart.");
 
-const app = buildApp({ config });
+const store = await openStore({ databaseUrl: config.databaseUrl, sqlitePath: config.dbPath });
+const app = buildApp({ config, store });
 await app.listen({ port: config.port, host: "0.0.0.0" });
-const serving = config.miniappDist && existsSync(join(config.miniappDist, "index.html"));
-console.log(`UNDERWORLD API on http://localhost:${config.port} (db: ${config.dbPath}${config.devAuth ? ", DEV_AUTH on" : ""})`);
-console.log(serving ? `Serving Mini App from ${config.miniappDist}` : "Mini App not built (npm run build) — API only.");
+console.log(
+  `UNDERWORLD API on http://localhost:${config.port} (db: ${store.dialect === "postgres" ? "PostgreSQL" : config.dbPath}${config.devAuth ? ", DEV_AUTH on" : ""})`,
+);

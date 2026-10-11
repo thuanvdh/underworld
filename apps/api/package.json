@@ -8,11 +8,12 @@
     "start:prod": "node src/production.ts"
   },
   "dependencies": {
+    "@fastify/static": "^10.1.6",
+    "@underworld/bot": "*",
     "@underworld/combat": "*",
     "@underworld/shared": "*",
     "fastify": "^5.12.5",
-    "@fastify/static": "^10.1.6",
-    "@underworld/bot": "*",
-    "grammy": "^1.46.0"
+    "grammy": "^1.46.0",
+    "pg": "^8.23.1"
   }
 }

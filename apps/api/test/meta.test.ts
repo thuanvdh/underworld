@@ -3,20 +3,20 @@ import { describe, it } from "node:test";
 import { Battle, type BattleSetup } from "@underworld/combat";
 import { buildApp } from "../src/app.ts";
 import { loadConfig } from "../src/config.ts";
-import { openDb } from "../src/db.ts";
+import { testStore } from "./store-helper.ts";
 import { weekKey } from "../src/game/service.ts";
 
 const DAY = 86_400_000;
 
-function setup() {
+async function setup() {
   let clock = Date.UTC(2026, 9, 10, 8);
-  const db = openDb(":memory:");
+  const db = await testStore();
   const config = loadConfig({ dbPath: ":memory:", devAuth: true, sessionSecret: "s", miniappDist: "" });
-  const app = buildApp({ config, db, now: () => clock });
+  const app = buildApp({ config, store: db, now: () => clock });
   return { app, db, advance: (ms: number) => (clock += ms) };
 }
 
-async function session(app: ReturnType<typeof setup>["app"], devUserId = 1) {
+async function session(app: Awaited<ReturnType<typeof setup>>["app"], devUserId = 1) {
   const res = await app.inject({ method: "POST", url: "/api/auth/session", payload: { devUserId } });
   const token = res.json().token as string;
   const call = async (method: "GET" | "POST", url: string, payload?: unknown) => {
@@ -36,7 +36,7 @@ function play(setupData: BattleSetup) {
 }
 
 /** New player → class → clear floors (free newbie runs) until level 10, equipping as we go. */
-async function levelTen(app: ReturnType<typeof setup>["app"], id = 1) {
+async function levelTen(app: Awaited<ReturnType<typeof setup>>["app"], id = 1) {
   const call = await session(app, id);
   await call("POST", "/api/me/class", { classId: "butcher" });
   for (let floor = 1; floor <= 15; floor++) {
@@ -51,14 +51,14 @@ async function levelTen(app: ReturnType<typeof setup>["app"], id = 1) {
 
 describe("quests", () => {
   it("are locked before level 10", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const call = await session(app);
     assert.equal((await call("GET", "/api/quests")).body.error, "locked_feature");
     assert.equal((await call("GET", "/api/shop")).body.error, "locked_feature");
   });
 
   it("count actions, fill activity and pay out milestone chests once", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const call = await levelTen(app);
     const q = (await call("GET", "/api/quests")).body;
     const byId = Object.fromEntries(q.daily.map((d: { id: string }) => [d.id, d]));
@@ -77,7 +77,7 @@ describe("quests", () => {
 
 describe("login calendar", () => {
   it("gives one reward per day in order", async () => {
-    const { app, advance } = setup();
+    const { app, advance } = await setup();
     const call = await levelTen(app);
     const day1 = await call("POST", "/api/calendar/claim");
     assert.equal(day1.body.rewards.gems, 500);
@@ -91,9 +91,9 @@ describe("login calendar", () => {
 
 describe("gem shop", () => {
   it("free chest once a day, paid pulls cost gems, limits hold", async () => {
-    const { app, db } = setup();
+    const { app, db } = await setup();
     const call = await levelTen(app);
-    db.prepare("UPDATE players SET gems = 5000").run();
+    await db.run("UPDATE players SET gems = 5000");
 
     const free = await call("POST", "/api/shop/chest", { count: 1, free: true });
     assert.equal(free.body.rewards.items.length, 1);
@@ -121,9 +121,9 @@ describe("gem shop", () => {
   });
 
   it("refuses purchases without enough gems", async () => {
-    const { app, db } = setup();
+    const { app, db } = await setup();
     const call = await levelTen(app);
-    db.prepare("UPDATE players SET gems = 10").run();
+    await db.run("UPDATE players SET gems = 10");
     assert.equal((await call("POST", "/api/shop/chest", { count: 10 })).body.error, "not_enough_gems");
   });
 });

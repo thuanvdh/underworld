@@ -4,7 +4,7 @@ services:
     name: underworld
     runtime: docker
     # Free plan: no card needed. The service sleeps after 15 min idle (a Telegram message wakes it in ~1 min)
-    # and has no persistent disk, so player data resets on every deploy/restart.
+    # and has no persistent disk — set DATABASE_URL (free Neon PostgreSQL) so player data survives.
     # For real players switch to `plan: starter` and add:
     #   disk: { name: data, mountPath: /data, sizeGB: 1 }
     plan: free
@@ -14,6 +14,8 @@ services:
     envVars:
       - key: BOT_TOKEN
         sync: false # paste your @BotFather token in the Render dashboard
+      - key: DATABASE_URL
+        sync: false # PostgreSQL connection string (free Neon database) — keeps player data across restarts
       - key: SESSION_SECRET
         generateValue: true
       - key: DB_PATH

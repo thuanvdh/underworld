@@ -1,5 +1,5 @@
 import type { ClassId } from "@underworld/shared";
-import type { Db } from "../db.ts";
+import type { Store } from "../store.ts";
 
 export type Currency = "gold" | "gems" | "stones" | "dust" | "crystals" | "cores";
 
@@ -88,33 +88,43 @@ function fromRow(r: Row): Player {
   };
 }
 
-export function findPlayer(db: Db, id: number): Player | null {
-  const row = db.prepare("SELECT * FROM players WHERE id = ?").get(id) as Row | undefined;
+/**
+ * Load a player. With `lock` inside a transaction on PostgreSQL the row is locked (FOR UPDATE), so two
+ * concurrent requests for the same player run one after the other and can't double-spend.
+ */
+export async function findPlayer(db: Store, id: number, lock = false): Promise<Player | null> {
+  const row = await db.get<Row>(`SELECT * FROM players WHERE id = ?${lock && db.dialect === "postgres" ? " FOR UPDATE" : ""}`, id);
   return row ? fromRow(row) : null;
 }
 
-export function findPlayerByTelegram(db: Db, telegramId: number): Player | null {
-  const row = db.prepare("SELECT * FROM players WHERE telegram_id = ?").get(telegramId) as Row | undefined;
+export async function findPlayerByTelegram(db: Store, telegramId: number): Promise<Player | null> {
+  const row = await db.get<Row>(`SELECT * FROM players WHERE telegram_id = ?${db.dialect === "postgres" ? " FOR UPDATE" : ""}`, telegramId);
   return row ? fromRow(row) : null;
 }
 
-export function insertPlayer(db: Db, telegramId: number, name: string, language: string, now: number): Player {
-  const r = db
-    .prepare(
-      `INSERT INTO players (telegram_id, name, language, energy_at, afk_last_claim, created_at, last_seen_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .run(telegramId, name, language, now, now, now, now);
-  return findPlayer(db, Number(r.lastInsertRowid))!;
+export async function insertPlayer(db: Store, telegramId: number, name: string, language: string, now: number): Promise<Player> {
+  const row = await db.get<Row>(
+    `INSERT INTO players (telegram_id, name, language, energy_at, afk_last_claim, created_at, last_seen_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (telegram_id) DO NOTHING RETURNING *`,
+    telegramId,
+    name,
+    language,
+    now,
+    now,
+    now,
+    now,
+  );
+  // Two first logins racing: the loser reads the row the winner created.
+  return row ? fromRow(row) : (await findPlayerByTelegram(db, telegramId))!;
 }
 
-export function savePlayer(db: Db, p: Player): void {
-  db.prepare(
+export async function savePlayer(db: Store, p: Player): Promise<void> {
+  await db.run(
     `UPDATE players SET name = ?, language = ?, class = ?, class_chosen = ?, level = ?, exp = ?, gold = ?, gems = ?, stones = ?,
        dust = ?, crystals = ?, cores = ?, energy = ?, energy_at = ?, afk_last_claim = ?, afk_carry_stones = ?,
        afk_carry_dust = ?, highest_floor = ?, forge_day = ?, forge_bought = ?, last_seen_at = ?
      WHERE id = ?`,
-  ).run(
     p.name,
     p.language,
     p.classId,
@@ -141,12 +151,13 @@ export function savePlayer(db: Db, p: Player): void {
 }
 
 /** Change a balance and write the ledger entry. Throws if the balance would go negative. */
-export function adjust(db: Db, p: Player, currency: Currency, delta: number, reason: string, ref: string | null, now: number): void {
+export async function adjust(db: Store, p: Player, currency: Currency, delta: number, reason: string, ref: string | null, now: number): Promise<void> {
   if (delta === 0) return;
   const next = p[currency] + delta;
   if (next < 0) throw new Error(`negative ${currency} balance`);
   p[currency] = next;
-  db.prepare("INSERT INTO ledger (player_id, currency, delta, balance_after, reason, ref, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)").run(
+  await db.run(
+    "INSERT INTO ledger (player_id, currency, delta, balance_after, reason, ref, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
     p.id,
     currency,
     delta,

@@ -5,18 +5,18 @@ import { Battle, type BattleSetup } from "@underworld/combat";
 import { buildApp } from "../src/app.ts";
 import { verifyInitData } from "../src/auth.ts";
 import { loadConfig } from "../src/config.ts";
-import { openDb } from "../src/db.ts";
+import { testStore } from "./store-helper.ts";
 
 const BOT_TOKEN = "123456:TEST";
 
-function setup(start = Date.UTC(2026, 9, 10, 8)) {
+async function setup(start = Date.UTC(2026, 9, 10, 8)) {
   let clock = start;
   const config = loadConfig({ dbPath: ":memory:", devAuth: true, botToken: BOT_TOKEN, sessionSecret: "test-secret", miniappDist: "" });
-  const app = buildApp({ config, db: openDb(":memory:"), now: () => clock });
+  const app = buildApp({ config, store: await testStore(), now: () => clock });
   return { app, advance: (ms: number) => (clock += ms) };
 }
 
-async function login(app: ReturnType<typeof setup>["app"], devUserId = 1, pickClass = true) {
+async function login(app: Awaited<ReturnType<typeof setup>>["app"], devUserId = 1, pickClass = true) {
   const res = await app.inject({ method: "POST", url: "/api/auth/session", payload: { devUserId } });
   assert.equal(res.statusCode, 200);
   const body = res.json() as { token: string; player: { id: number } };
@@ -56,7 +56,7 @@ describe("auth", () => {
   });
 
   it("logs in through initData and rejects requests without a session", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const initData = signedInitData({ id: 42, first_name: "Kat" }, Math.floor(Date.UTC(2026, 9, 10, 8) / 1000));
     const ok = await app.inject({ method: "POST", url: "/api/auth/session", payload: { initData } });
     assert.equal(ok.statusCode, 200);
@@ -68,7 +68,7 @@ describe("auth", () => {
 
 describe("dungeon flow", () => {
   it("start → client battle → finish pays rewards once and unlocks the next floor", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const { call } = await login(app);
 
     const start = await call("POST", "/api/battles/dungeon/start", { floor: 1 });
@@ -94,7 +94,7 @@ describe("dungeon flow", () => {
   });
 
   it("charges energy after the newbie window and refunds most of it on a loss", async () => {
-    const { app, advance } = setup();
+    const { app, advance } = await setup();
     await login(app);
     advance(49 * 3600_000);
     const { call } = await login(app); // sessions last 12h; the app re-logs in on open
@@ -106,7 +106,7 @@ describe("dungeon flow", () => {
   });
 
   it("rejects malformed inputs", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const { call } = await login(app);
     const start = await call("POST", "/api/battles/dungeon/start", { floor: 1 });
     const bad = await call("POST", `/api/battles/${start.body.battleId}/finish`, { inputs: { skillTicks: ["x"], boonPicks: [] } });
@@ -114,7 +114,7 @@ describe("dungeon flow", () => {
   });
 
   it("a player cannot finish someone else's battle", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const a = await login(app, 1);
     const b = await login(app, 2);
     const start = await a.call("POST", "/api/battles/dungeon/start", { floor: 1 });
@@ -125,7 +125,7 @@ describe("dungeon flow", () => {
 
 describe("items, AFK and forge", () => {
   async function progressed() {
-    const s = setup();
+    const s = await setup();
     const session = await login(s.app);
     for (let floor = 1; floor <= 8; floor++) {
       const start = await session.call("POST", "/api/battles/dungeon/start", { floor });
@@ -178,7 +178,7 @@ describe("items, AFK and forge", () => {
   });
 
   it("forge stone price rises and stops at the daily cap", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const { call } = await login(app);
     const poor = await call("POST", "/api/forge/stones", { count: 1 });
     assert.equal(poor.body.error, "not_enough_gold");
@@ -195,7 +195,7 @@ describe("serving the Mini App", () => {
     mkdirSync(join(dist, "assets"));
     writeFileSync(join(dist, "assets", "app-abc.js"), "console.log(1)");
     const config = loadConfig({ dbPath: ":memory:", devAuth: true, sessionSecret: "s", miniappDist: dist });
-    const app = buildApp({ config, db: openDb(":memory:") });
+    const app = buildApp({ config, store: await testStore() });
 
     const root = await app.inject({ method: "GET", url: "/" });
     assert.equal(root.statusCode, 200);
@@ -216,7 +216,7 @@ describe("serving the Mini App", () => {
 
 describe("character select", () => {
   it("a new player must pick a class before fighting", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const { call, player } = await login(app, 7, false);
     assert.equal((player as unknown as { classChosen: boolean }).classChosen, false);
     const blocked = await call("POST", "/api/battles/dungeon/start", { floor: 1 });
@@ -229,7 +229,7 @@ describe("character select", () => {
   });
 
   it("players can switch class any time and keep level and gear", async () => {
-    const { app, advance } = setup();
+    const { app, advance } = await setup();
     const a = await login(app, 8);
     const start = await a.call("POST", "/api/battles/dungeon/start", { floor: 1 });
     const result = playClient(start.body.setup);
@@ -246,7 +246,7 @@ describe("character select", () => {
   });
 
   it("first clears of floor 1 and 3 guarantee the tutorial drops; boons wait for level 6", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const { call } = await login(app, 9);
     const start = await call("POST", "/api/battles/dungeon/start", { floor: 1 });
     assert.equal(start.body.setup.boonsEnabled, false);
@@ -258,7 +258,7 @@ describe("character select", () => {
 
 describe("per-class bags", () => {
   it("drops land in their class's bag and only that class can equip them", async () => {
-    const { app } = setup();
+    const { app } = await setup();
     const { call } = await login(app, 21);
     // Farm a few floors so some drops belong to other classes.
     for (let floor = 1; floor <= 6; floor++) {
@@ -289,5 +289,35 @@ describe("per-class bags", () => {
       const back = await call("GET", "/api/items?class=butcher");
       assert.equal(back.body.bag.length + Object.keys(back.body.equipped).length >= 0, true);
     }
+  });
+});
+
+describe("concurrency", () => {
+  it("parallel finishes of one battle pay out exactly once", async () => {
+    const { app } = await setup();
+    const { call } = await login(app, 31);
+    const start = await call("POST", "/api/battles/dungeon/start", { floor: 1 });
+    const inputs = playClient(start.body.setup).inputs;
+    const results = await Promise.all(Array.from({ length: 5 }, () => call("POST", `/api/battles/${start.body.battleId}/finish`, { inputs })));
+    assert.ok(results.every((r) => r.status === 200));
+    const me = await call("GET", "/api/me");
+    assert.equal(me.body.gold, results[0]!.body.player.gold, "gold credited once");
+    for (const r of results) assert.deepEqual(r.body.result, results[0]!.body.result);
+  });
+
+  it("parallel purchases never exceed the daily limit or overdraw", async () => {
+    const { app } = await setup();
+    const { call } = await login(app, 32);
+    // Earn some gold, then hammer the forge in parallel.
+    for (let floor = 1; floor <= 5; floor++) {
+      const s = await call("POST", "/api/battles/dungeon/start", { floor });
+      await call("POST", `/api/battles/${s.body.battleId}/finish`, { inputs: playClient(s.body.setup).inputs });
+    }
+    const before = await call("GET", "/api/me");
+    const buys = await Promise.all(Array.from({ length: 6 }, () => call("POST", "/api/forge/stones", { count: 1 })));
+    const ok = buys.filter((b) => b.status === 200).length;
+    const after = await call("GET", "/api/me");
+    assert.equal(after.body.stones - before.body.stones, ok, "one stone per successful buy");
+    assert.ok(after.body.gold >= 0);
   });
 });
