@@ -35,7 +35,7 @@ export function RewardChips({ reward, big }: { reward: Reward; big?: boolean }) 
       ) : null}
       {reward.item ? (
         <span className={`r-${reward.item.rarity}`}>
-          <SpriteImg sprite={itemSprite(reward.item.slot ?? "armor", reward.item.rarity === "legendary")} scale={s} />
+          <SpriteImg sprite={itemSprite(reward.item.slot ?? "armor", reward.item.rarity === "legendary", undefined, reward.item.rarity)} scale={s} />
           {reward.item.rarity === "legendary" ? "Legendary" : "Epic"}
         </span>
       ) : null}

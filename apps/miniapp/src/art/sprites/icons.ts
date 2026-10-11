@@ -1,4 +1,5 @@
-import type { ClassId, Slot } from "@underworld/shared";
+import type { ClassId, Rarity, Slot } from "@underworld/shared";
+import { weaponSprite } from "../hero.ts";
 import { C } from "../palette.ts";
 import { outlined, recolor, type Sprite } from "../pixel.ts";
 
@@ -183,8 +184,9 @@ const LEGENDARY_WEAPONS = Object.fromEntries(
   Object.entries(WEAPON_BASE).map(([c, s]) => [c, outlined(recolor(s, { g: "#ffc93c", G: "#fff3c4", h: "#b8860b", z: "#ffc93c", Z: "#fff3c4" }), OUT)]),
 ) as Record<ClassId, Sprite>;
 
-export function itemSprite(slot: Slot, legendary = false, classId?: ClassId): Sprite {
-  if (slot === "weapon" && classId) return legendary ? LEGENDARY_WEAPONS[classId] : WEAPONS[classId];
+export function itemSprite(slot: Slot, legendary = false, classId?: ClassId, rarity?: Rarity): Sprite {
+  // Class weapons are the same models the hero holds, one per rarity.
+  if (slot === "weapon" && classId) return rarity ? weaponSprite(classId, rarity) : legendary ? LEGENDARY_WEAPONS[classId] : WEAPONS[classId];
   return legendary ? LEGENDARY_ITEMS[slot] : ITEMS[slot];
 }
 

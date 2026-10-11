@@ -9,7 +9,7 @@ import { outlined, type Palette, type Sprite } from "./pixel.ts";
  *   p P    legs                                    o O    boots
  *   s S d  skin    b beard    k/e eyes    x hood shadow
  * Equipped slots recolor their part with the item's rarity material, and the class weapon is drawn in
- * the right hand, tinted by its rarity. Results are cached per class + look.
+ * the right hand: each rarity is its own model (see WEAPONS), tinted by that rarity. Results are cached per class + look.
  */
 
 type Tier = Rarity | "none";
@@ -46,7 +46,12 @@ interface ClassArt {
   boots: [string, string];
   legs: [string, string];
   extra: Palette;
-  weapon: { rows: string[]; grip: [number, number] };
+}
+
+interface Weapon {
+  rows: string[];
+  /** Pixel of the weapon that sits in the hand. */
+  grip: [number, number];
 }
 
 const SKIN = { s: "#9a6440", S: "#c08458", d: "#6b4128" };
@@ -54,114 +59,295 @@ const SKIN = { s: "#9a6440", S: "#c08458", d: "#6b4128" };
 const ART: Record<ClassId, ClassArt> = {
   butcher: {
     rows: [
-      "....zzaaaAA.....",
-      "...zaaaaaaAA....",
-      "..zzaaaaaaaAA...",
-      ".z.dssssssSS....",
-      "z..dsssskSSS....",
-      "...dssssssSs....",
-      "...dbsssssSb....",
-      "...bbbbsssbb....",
-      "....bbbbbbb.....",
-      "..uutttttttTT...",
-      ".uuttlllllLtTT..",
-      ".uwttlllllLtTw..",
-      ".dwutlllllLtTw..",
-      ".dw.ulllllLm.w..",
-      "..d.mlllllLm....",
-      "....mlllllmm....",
-      "....pppPPPpp....",
-      "....ppp..Ppp....",
-      "....ppp..Ppp....",
-      "....ppp..Ppp....",
-      "...oooo..oooo...",
-      "...oOoo..oOoo...",
+      "..........zzaaaaaA..........",
+      "........zzaaaaaaaaAA........",
+      ".......zaaaaaaaaaaaAA.......",
+      "......zzaaaaaaaaaaaaA.......",
+      "...zaz.zzzzzzzzzzzzzz.......",
+      "..zaz..dsssssssssSSSS.......",
+      "..zz...dssssssssskSSS.......",
+      ".......dsssssssssskSS.......",
+      ".......ddssssssssssSSs......",
+      ".......dbbssssssssssSs......",
+      ".......dbbbbbsssssbbBb......",
+      "........bbbbbbbbbbbbBb......",
+      ".........bbbbbbbbbbBb.......",
+      "..........bbbbbbbbb.........",
+      ".....uutttttttttttttTT......",
+      "....uutttttttttttttttTT.....",
+      "...uuttlltttttttttllltTT....",
+      "...uutttllllllllllllltTT....",
+      "..wwuttlLLLLLLLLLLLLlltTww..",
+      "..wWuttlLLLLLLLLLLLLlltTwW..",
+      "..wwuttlLLLLyyyyLLLLlltTww..",
+      "....uttlLLLLLLLLLLLLlltT....",
+      "....uttmLLLLLLLLLLLLmmtT....",
+      ".....ummLLLLLLLLLLLLmmT.....",
+      ".....pppmLLLLLLLLLLmPPP.....",
+      ".....ppppmmmmmmmmmmPPPP.....",
+      ".....pppppp....PPPPPP.......",
+      ".....pppppp....PPPPPP.......",
+      ".....pppppp....PPPPPP.......",
+      ".....pppppp....PPPPPP.......",
+      "....oooooOo...ooooooOo......",
+      "....ooooooo...ooooooo.......",
+      "...oooooooo..oooooooo.......",
+      "...oooooooo..oooooooo.......",
     ],
-    hand: [13, 12],
+    hand: [25, 19],
     head: { base: ["#7d2219", "#c43a2f", "#e8573f"] },
     torso: { base: ["#7d2219", "#c43a2f", "#e8573f"] },
     accent: { base: ["#48301b", "#6e4a2a", "#946437"] },
     boots: ["#3a271a", "#5a3d24"],
     legs: ["#2e2e3c", "#44445a"],
-    extra: { b: "#2a1b12", k: C.abyss },
-    // Cleaver held upright, blade above the fist.
-    weapon: {
-      rows: ["hhhhh.", "Gggggh", "Gggggh", "Gggggh", "GGGGGh", "..nN..", "..nN..", "..nN.."],
-      grip: [2, 6],
-    },
+    extra: { b: "#2a1b12", B: "#4a3020", k: C.abyss, y: "#c9a548" },
   },
   gunslinger: {
     rows: [
-      "................",
-      ".....aaaaA......",
-      ".....aaaaaA.....",
-      "..aaaaaaaaaaA...",
-      "....dssssSS.....",
-      "....dsssskS.....",
-      "....dssssSS.....",
-      ".....llllll.....",
-      "....llllllll....",
-      "...tttttttTT....",
-      "..ttttttttTTT...",
-      "..wtttttttTTw...",
-      "..wttttttttTw...",
-      "...tttttttTT....",
-      "...tttttttTT....",
-      "...ttt.pp.TT....",
-      "....ppp..ppp....",
-      "....ppp..ppp....",
-      "....ppp..ppp....",
-      "....ppp..ppp....",
-      "...oooo..oooo...",
-      "...oOoo..oOoo...",
+      "...........aaaaaA...........",
+      "..........aaaaaaaAA.........",
+      "..........aaaaaaaaA.........",
+      "..........zzzzzzzzz.........",
+      "....aaaaaaaaaaaaaaaaaAA.....",
+      ".....zzzzzzzzzzzzzzzz.......",
+      "........dssssssssSSS........",
+      "........dssssssskSSS........",
+      "........dssssssskSSs........",
+      "........ddsssssssSSs........",
+      ".........dssbbbbsSs.........",
+      ".........lllllllllll........",
+      "........lllLLLLlllllL.......",
+      ".......utttllllllttttTT.....",
+      "......uutttttllltttttTT.....",
+      ".....uuttttttlltttttttTT....",
+      "....wuuttttttttttttttttTw...",
+      "....wWuttttttttttttttttTwW..",
+      "....wwuyyyyyyyyyyyyyyyyTww..",
+      ".....uttttttttytttttttTT....",
+      ".....uttttttttttttttttTT....",
+      ".....utttttt.pppp.tttttTT...",
+      "....uttttt..pppPP..ttttTT...",
+      "....utttt...pppPP...tttTT...",
+      "....uuuu....pp..PP...uuuu...",
+      "............pp..PP..........",
+      "...........ppp..PPP.........",
+      "...........ppp..PPP.........",
+      "...........ppp..PPP.........",
+      "..........oooo..oOoo........",
+      "..........oooo..oooo........",
+      ".........ooooo..ooooo.......",
+      ".........ooooo..ooooo.......",
     ],
-    hand: [12, 12],
+    hand: [24, 17],
     head: { base: ["#3a2614", "#5a3d24", "#7a5634"] },
     torso: { base: ["#232c40", "#2f3a52", "#44547a"] },
     accent: { base: ["#7a5a1a", "#b8862b", "#d8a848"] },
     boots: ["#3a271a", "#5a3d24"],
     legs: ["#2a2a36", "#3a3a48"],
-    extra: { k: C.abyss },
-    // Revolver pointing forward.
-    weapon: { rows: ["hhhhhhhG", "hggggggG", "nnh.....", "nN......", "nn......"], grip: [0, 2] },
+    extra: { k: C.abyss, b: "#5a3d24", y: "#4a3220" },
   },
   hexer: {
     rows: [
-      "......aaaA......",
-      ".....aaaaaA.....",
-      "....aaaaaaAA....",
-      "....aaxxxxAA....",
-      "...aaxxexexAA...",
-      "...aaxxxxxxAA...",
-      "...aaaxxxxAAA...",
-      "..tttttttttTTT..",
-      "..tttttllltTTT..",
-      ".wtttttttttTTw..",
-      ".wtttttttttTTw..",
-      "..tttttttttTT...",
-      "..tttttttttTT...",
-      "..tttttttttTT...",
-      "..tttttttttTT...",
-      ".tttttttttttTT..",
-      ".tttttttttttTT..",
-      ".tttttttttttTT..",
-      "tttttttttttttTT.",
-      "tttttttttttttTT.",
-      ".oooo....oooo...",
-      "................",
+      "..............aA............",
+      ".............aaAA...........",
+      "............aaaaAA..........",
+      "...........aaaaaaAA.........",
+      "..........aaaaaaaaAA........",
+      ".........aaaaaaaaaaAA.......",
+      "........aaaaxxxxxxaaAA......",
+      "........aaaxxxxxxxxaAA......",
+      "........aaxxxexxexxaAA......",
+      "........aaxxxxxxxxxaAA......",
+      "........aaaxxxxxxxaaAA......",
+      ".......zaaaaxxxxxaaaaAz.....",
+      "......zzaaaaaaaaaaaaaAAzz...",
+      "......uuttttttttttttttTTu...",
+      ".....uutttttttttttttttTTTu..",
+      ".....uttttttLLLLLLttttTTTu..",
+      "...wutttttlyyyyyylttttTTwu..",
+      "...wWuttttttLLLLLLttttTTwW..",
+      "....utttttttLttLtttttTTTu...",
+      "....uttttttttLLtttttttTTu...",
+      "....uttttttttttttttttTTTu...",
+      "...uttttttttttttttttttTTTu..",
+      "...uttttttLtttttttLtttTTTu..",
+      "...utttttttLLttttLLttttTTu..",
+      "..uttttttttttttttttttttTTTu.",
+      "..utttttttttttttttttttttTTu.",
+      ".uutttttttttttttttttttttTTTu",
+      ".uuuuuuuuuuuuuuuuuuuuuuuuuuu",
+      "...ooooo..........ooooo.....",
+      "...oOooo..........oOooo.....",
     ],
-    hand: [13, 10],
+    hand: [25, 17],
     head: { base: ["#2a1840", "#3d2456", "#5a3680"] },
     torso: { base: ["#2a1840", "#3d2456", "#5a3680"] },
     accent: { base: ["#8a6a2a", "#c9a548", "#f0d27a"] },
     boots: ["#2a1d14", "#3a2a1d"],
     legs: ["#2a2a36", "#3a3a48"],
-    extra: { x: "#120c18", e: "#5cff8f" },
-    // Staff with an orb on top.
-    weapon: {
-      rows: [".j.", "jJj", "jjj", ".j.", ".n.", ".N.", ".n.", ".N.", ".n.", ".N.", ".n.", ".N.", ".n.", ".N.", ".n."],
-      grip: [1, 8],
+    extra: { x: "#120c18", e: "#5cff8f", y: "#c9a548" },
+  },
+};
+
+/** A staff: a head on top of a long shaft whose grain alternates n/N; the grip sits partway down the shaft. */
+function staff(head: string[], shaft: number, grip: number): Weapon {
+  const w = head[0]!.length;
+  const col = Math.floor(w / 2);
+  const line = (ch: string) => ".".repeat(col) + ch + ".".repeat(w - col - 1);
+  const rows = [...head, ...Array.from({ length: shaft }, (_, i) => line(i % 2 ? "N" : "n")), line("h")];
+  return { rows, grip: [col, head.length + grip] };
+}
+
+/**
+ * Every rarity has its own weapon model, so an upgrade changes the silhouette, not just the color.
+ *   g G h  metal (tinted by rarity)    j J  gem / rune glow    n N  wood / grip    q Q  bone
+ * Unarmed heroes ("none") hold the common model in plain steel.
+ */
+const WEAPONS: Record<ClassId, Record<Rarity, Weapon>> = {
+  butcher: {
+    // Rusty hand cleaver.
+    common: {
+      rows: ["hhhhhh.", "Ggggggh", "Gggghgh", "Ggggggh", "GGGGGGh", ".hh....", ".nN....", ".nN....", ".nN...."],
+      grip: [1, 7],
     },
+    // Long butcher knife.
+    uncommon: {
+      rows: ["..Gh.", ".GGh.", ".Ggh.", "Gggh.", "Gggh.", "Gggh.", "Gggh.", "Gggh.", "Gggh.", "GGGh.", "hhhhh", ".nN..", ".nN..", ".nN..", ".hh.."],
+      grip: [1, 12],
+    },
+    // Heavy cleaver with a hanging hole.
+    rare: {
+      rows: [
+        "hhhhhhhhhh",
+        "GGGGGGGGGh",
+        "Gggggghhgh",
+        "Gggggghhgh",
+        "Gggggggggh",
+        "Gggggggggh",
+        "Gggggggggh",
+        "GGGGGGGGGh",
+        ".hhhh.....",
+        "..nN......",
+        "..nN......",
+        "..nN......",
+        "..nN......",
+        "..hh......",
+      ],
+      grip: [2, 10],
+    },
+    // Serrated bone-saw cleaver etched with runes.
+    epic: {
+      rows: [
+        "G.G.G.G.G..",
+        "GGGGGGGGGGh",
+        "GggjgggggJh",
+        "GgggggggJgh",
+        "GggjggJgggh",
+        "GgggggggJgh",
+        "GgjgggJgggh",
+        "GGGGGGGGGGh",
+        ".hqqh......",
+        "..qQ.......",
+        "..jQ.......",
+        "..qQ.......",
+        "..qj.......",
+        "..hh.......",
+      ],
+      grip: [2, 11],
+    },
+    // Executioner's cleaver, gold-edged, with a burning gem and flames on the spine.
+    legendary: {
+      rows: [
+        "...j...j..j..",
+        "..jJ..jJ.jJ..",
+        "hhhhhhhhhhhhh",
+        "GGGGGGGGGGGGh",
+        "Gggggggggghgh",
+        "GggjgggggghGh",
+        "GggJjggggggGh",
+        "Gggjgggggggh.",
+        "Gggggggggggh.",
+        "GGGGGGGGGGh..",
+        "hhhhhhhh.....",
+        "..hjjh.......",
+        "...nN........",
+        "...nN........",
+        "...nN........",
+        "...nN........",
+        "..hJJh.......",
+      ],
+      grip: [3, 14],
+    },
+  },
+  gunslinger: {
+    // Pocket derringer.
+    common: { rows: ["hhhhhG", "hggggG", "hhnn..", ".nNn..", ".nn..."], grip: [1, 3] },
+    // Six-shooter.
+    uncommon: {
+      rows: ["...hhhhhhhhG", "..hgggggggGG", "..hghgggggg.", "..hhhgnn....", "....nnNn....", "...nNNn.....", "..nNNn......", "..nnn......."],
+      grip: [4, 4],
+    },
+    // Long-barrel revolver with a scope.
+    rare: {
+      rows: [
+        "....hhhh.......",
+        "...hhggh.......",
+        "..hhhhhhhhhhhhG",
+        "..hgggggggggggG",
+        "..hghgjgghhhhh.",
+        "..hhhgnn.......",
+        "....nnNn.......",
+        "...nNNn........",
+        "..nNNn.........",
+        "..nnn..........",
+      ],
+      grip: [4, 6],
+    },
+    // Double-barrel hand cannon.
+    epic: {
+      rows: [
+        "..hhhhhhhhhhhG",
+        ".hGGGGGGGGGGGG",
+        ".hggggggggggGG",
+        ".hGGGGGGGGGGGG",
+        ".hgjggghhhhhh.",
+        "..hhhgnn......",
+        "....nnNn......",
+        "...nNNn.......",
+        "..nNNn........",
+        "..nnn.........",
+      ],
+      grip: [4, 6],
+    },
+    // Gilded drum revolver with a burning muzzle and a bone grip.
+    legendary: {
+      rows: [
+        "..............j.",
+        "..hhhhhhhhhhhGjJ",
+        ".hhGGGGGGGGGGGJj",
+        ".hgggggggggggGj.",
+        "hhjJjghhhhhhhh..",
+        "hjJJJjgqq.......",
+        "hhjjjhqQQq......",
+        "..hhhqQQq.......",
+        "....qQQq........",
+        "...qQQq.........",
+        "...qqqq.........",
+      ],
+      grip: [6, 7],
+    },
+  },
+  hexer: {
+    // Gnarled branch.
+    common: staff([".n.n.", ".nNn."], 18, 9),
+    // Bone wand with a skull.
+    uncommon: staff([".qqq.", "qhqhq", "qQqQq", ".qhq.", "..q.."], 16, 8),
+    // Crystal staff in a metal cradle.
+    rare: staff(["..j..", ".jJj.", ".jJj.", "jJJjj", ".jjj.", "..j..", "hgGgh", ".hgh."], 16, 6),
+    // Crescent moon cradling a floating gem.
+    epic: staff(["..GGGG.", ".Gg....", "Gg..j..", "Gg.jJj.", "Gg..j..", ".Gg....", "..GGGG.", "..hgh.."], 16, 6),
+    // Winged all-seeing eye.
+    legendary: staff(["....j....", "j..jjj..j", "JjjJhJjjJ", "GJjJhJjJG", ".GgjjjgG.", "..GgGgG..", "...hgh..."], 16, 6),
   },
 };
 
@@ -219,10 +405,12 @@ export function heroArt(classId: ClassId, look: Look = {}): HeroArt {
     J: metal.J,
     n: "#5a3d24",
     N: "#8e6638",
+    q: "#d8cfb4",
+    Q: "#f0ead8",
   };
 
   // Compose: place the weapon so its grip lands on the hand, growing the canvas if it sticks out.
-  const wpn = art.weapon;
+  const wpn = WEAPONS[classId][look.weapon ?? "common"];
   const ox = art.hand[0] - wpn.grip[0];
   const oy = art.hand[1] - wpn.grip[1];
   const minX = Math.min(0, ox);
@@ -253,4 +441,18 @@ export function tierColor(tier: Tier): string {
 }
 
 /** Base grids for the sprite sanity test. */
-export const HERO_GRIDS = Object.values(ART).flatMap((a) => [a.rows, a.weapon.rows]);
+export const HERO_GRIDS = [...Object.values(ART).map((a) => a.rows), ...Object.values(WEAPONS).flatMap((set) => Object.values(set).map((w) => w.rows))];
+
+const weaponCache = new Map<string, Sprite>();
+
+/** A weapon model on its own (item icons), colored the same way it looks in the hero's hand. */
+export function weaponSprite(classId: ClassId, rarity: Rarity | undefined): Sprite {
+  const key = `${classId}|${rarity ?? "-"}`;
+  let s = weaponCache.get(key);
+  if (!s) {
+    const metal = METAL[rarity ?? "none"];
+    s = outlined({ rows: WEAPONS[classId][rarity ?? "common"].rows, palette: { ...metal, n: "#5a3d24", N: "#8e6638", q: "#d8cfb4", Q: "#f0ead8" } }, C.outline);
+    weaponCache.set(key, s);
+  }
+  return s;
+}

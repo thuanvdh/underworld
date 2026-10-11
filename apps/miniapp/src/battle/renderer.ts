@@ -9,6 +9,8 @@ import { ParticleSystem, easeOut } from "../fx/particles.ts";
 
 /** Canvas pixels per art pixel: art stays chunky, effects get twice the resolution. */
 export const ART = 2;
+/** Heroes are drawn at 2× the monsters' pixel density. */
+export const HERO_ART = 1;
 const FONT = '"Pixelify Sans", monospace';
 
 const BOSS_NAMES: Record<string, string> = {
@@ -337,8 +339,9 @@ export class BattleRenderer {
   }
 
   private spriteOf(u: UnitView): { sprite: Sprite; scale: number } {
-    if (u.side === 0) return { sprite: this.heroLook.sprite, scale: ART };
-    if (u.kind === "hero") return { sprite: HEROES[u.key as ClassId] ?? HEROES.butcher, scale: ART };
+    // Hero art is drawn at twice the detail of the monsters, so it renders at 1× to stay the same size.
+    if (u.side === 0) return { sprite: this.heroLook.sprite, scale: HERO_ART };
+    if (u.kind === "hero") return { sprite: HEROES[u.key as ClassId] ?? HEROES.butcher, scale: HERO_ART };
     // Bosses: 2× / 1.5× the art size (integer canvas scales keep pixels square).
     return { sprite: enemySprite(u.key), scale: u.kind === "chapterBoss" ? 4 : u.kind === "boss" ? 3 : ART };
   }

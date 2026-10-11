@@ -253,7 +253,7 @@ function HeroFigure({ player }: { player: { classId: ClassId; look: Look } }) {
   const glow = art.weaponTier === "none" || art.weaponTier === "common" ? undefined : tierColor(art.weaponTier);
   return (
     <div className={`hero-figure ${art.aura ?? ""}`}>
-      <SpriteImg sprite={art.sprite} scale={6} style={glow ? { filter: `drop-shadow(0 0 6px ${glow}) drop-shadow(0 0 2px ${glow})` } : undefined} />
+      <SpriteImg sprite={art.sprite} scale={4} style={glow ? { filter: `drop-shadow(0 0 6px ${glow}) drop-shadow(0 0 2px ${glow})` } : undefined} />
     </div>
   );
 }
